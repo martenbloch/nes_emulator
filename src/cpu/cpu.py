@@ -407,22 +407,69 @@ class RamMemory:
 # Program ROM data 0x4020 - 0xFFFF
 class Cardrige:
 
-    def __init__(self, prog_start_addr, prog_data):
+    def __init__(self, file_name):
+        f = open(file_name, "rb")
+        data = f.read()
+        f.close()
+
+        prg_size = data[4]
+        chr_size = data[5]
+        flag6 = data[6]
+        flag7 = data[7]
+
+        trainer = data[6] & 0x4
+
+        mapperId = ((data[7] >> 4) << 4) | (data[6] >> 4)
+
+        prg_start = 16
+        chr_start = 16 + 16384 * prg_size
+        if trainer == 1:
+            prg_start += 512
+            chr_start += 512
+
+        self.prg = data[prg_start: prg_start + (16384 * prg_size)]
+        self.chr = data[chr_start: chr_start + (8192 * chr_size)]
+
         self.start_addr = 0x4020
         self.end_addr = 0xFFFF
-        self.data = [0 for i in range(self.end_addr - self.start_addr)]
-        self.data[prog_start_addr - self.start_addr: len(prog_data)] = prog_data
+
+        self.mapper = None
+        if mapperId == 0:
+            self.mapper = Mapper000(prg_size)
+
+        #self.data = [0 for i in range(self.end_addr - self.start_addr)]
+        #self.data[0xc000 - self.start_addr: len(prog_data)] = prog_data
+
+
+    #def __init__(self, prog_start_addr, prog_data):
+        #self.start_addr = 0x4020
+        #self.end_addr = 0xFFFF
+        #self.data = [0 for i in range(self.end_addr - self.start_addr)]
+        #self.data[prog_start_addr - self.start_addr: len(prog_data)] = prog_data
 
     def read(self, address):
-        return self.data[address - self.start_addr]
+        #return self.data[address - self.start_addr]
+        return self.prg[self.mapper.map_cpu_address(address)]
 
     def write(self, address, data):
-        self.data[address - self.start_addr] = data
+        #self.data[address - self.start_addr] = data
+        self.prg[self.mapper.map_cpu_address(address)] = data
 
     def is_address_valid(self, address):
         if self.start_addr <= address < self.end_addr:
             return True
         return False
+
+
+class Mapper000:
+    def __init__(self, prg_size):
+        self.prg_size = prg_size
+
+    def map_cpu_address(self, addr):
+        if self.prg_size > 1:
+            return addr & 0x7fff
+        else:
+            return addr & 0x3fff
 
 
 class Apu:
