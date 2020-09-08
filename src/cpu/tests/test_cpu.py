@@ -1,28 +1,29 @@
 import pytest
 from src.cpu import cpu
+from src.cpu import ppu
+from src.cpu import screen
 
 
 def test_cpu():
-    #f = open("cpu/tests/nestest.nes", "rb")
-    #data = f.read()
-    #f.close()
 
     bus = cpu.Bus()
     c = cpu.Cpu(bus, 0xC000)
     ram = cpu.RamMemory()
     cartridge = cpu.Cardrige("cpu/tests/nestest.nes")
     apu = cpu.Apu()
+    s = screen.Screen()
+    p = ppu.Ppu(s, cartridge)
     bus.connect(ram)
     bus.connect(cartridge)
     bus.connect(apu)
+    bus.connect(p)
 
-    i = 1
+    #c.reset()
     while True:
-        print(i)
-        if i == 8991:
-            x=3
-            c.clock()
+        if c.pc == 0xC66E:
             break
+        if c.clock_ticks == 13893:
+            x=3
         c.clock()
-        i += 1
+
 
