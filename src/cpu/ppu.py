@@ -163,7 +163,10 @@ class Ppu:
 
     def clock2(self):
 
-        if self.scanline == -1 and self.cycle == 0 and self.render_background:
+        if self.scanline == -1 and self.cycle == 0 and self.render_background and self.is_odd:
+            self.cycle = 1
+
+        if self.scanline == -1 and self.cycle == 1 and self.render_background:
             print("scanline -1")
             # load id's of 2 first tiles
             first_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
@@ -210,12 +213,12 @@ class Ppu:
                 if self.cycle % 8 == 6:
                     #print("cycle:{}, get tile low byte".format(self.cycle))
                     self.next_tile_low, u1 = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
-                                                          self.background_half)
+                                                          1)
 
                 if self.cycle % 8 == 0:
                     #print("cycle:{}, get tile high byte".format(self.cycle))
                     l1, self.next_tile_high = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
-                                                          self.background_half)
+                                                          1)
 
                     self.cur_addr.increment_tile_x()
 
@@ -276,6 +279,10 @@ class Ppu:
             self.debug_tile = ""
             if self.scanline == 262:    # ppu render 262 scanlines, -1, 0, 1-260
                 self.scanline = -1
+                if self.is_odd:
+                    self.is_odd = False
+                else:
+                    self.is_odd = True
                 print
                 self.screen.update(self.frame)
 
@@ -520,7 +527,8 @@ class Ppu:
             print("PPUADDR write:{}".format(hex(data)))
             if self.address_latch == 0:
                 self.address_latch = 1
-                self.ppu_addr = 0x0000 | (data << 8)
+                self.ppu_addr = 0x0000 | ((data & 0x3f) << 8)
+                self.tmp_addr.set_address((self.tmp_addr.vram_addr & 0x00ff) | ((data & 0x3f) << 8))
             else:
                 self.address_latch = 0
                 self.ppu_addr = self.ppu_addr | data
