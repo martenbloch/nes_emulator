@@ -117,7 +117,175 @@ class Ppu:
 
         self.is_odd = True
 
+        self.cur_addr = VramRegister()
+        self.tmp_addr = VramRegister()
+        self.address_latch = 0
+        self.next_tile_id = 0
+        self.next_tile_low = 0x00
+        self.next_tile_high = 0x00
+
+        self.debug_tile = ""
+
+        self.enable_bg_render = False
+
+    def read_video_mem(self, address):
+        if address >= 0x2000 and address <= 0x3eff:
+            index = address & 0x3ff
+            if self.cardridge.mirroring == 0:   # horizontal
+                if address >= 0x2000 and address <= 0x23ff:
+                    return self.name_table_0[index]
+                elif address >= 0x2400 and address <= 0x27ff:
+                    return self.name_table_0[index]
+                elif 0x2800 <= address <= 0x2bff:
+                    return self.name_table_1[index]
+                elif address >= 0x2c00 and address <= 0x2fff:
+                    return self.name_table_1[index]
+            else:
+                if address >= 0x2000 and address <= 0x23ff:
+                    return self.name_table_0[index]
+                elif address >= 0x2400 and address <= 0x27ff:
+                    return self.name_table_1[index]
+                elif address >= 0x2800 and address <= 0x2bff:
+                    return self.name_table_0[index]
+                elif address >= 0x2c00 and address <= 0x2fff:
+                    return self.name_table_1[index]
+        elif address >= 0x3f00 and address <= 0x3fff:
+            index = address & 0x3ff
+            return self.palette_ram[address & 0xff]
+        elif address >= 0 and address <= 0x1fff:
+            return self.cardridge.chr[self.vram_addr]
+        else:
+            raise NotImplementedError("video ram read for addr:{}".format(hex(address)))
+        return
+
+    def write_video_mem(self, address, data):
+        pass
+
+    def clock2(self):
+
+        if self.scanline == -1 and self.cycle == 0 and self.render_background:
+            print("scanline -1")
+            # load id's of 2 first tiles
+            first_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+            self.cur_addr.increment_tile_x()
+            second_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+            self.cur_addr.increment_tile_x()
+
+            # fill shift register
+            l1, u1 = self.cardridge.get_tile_data(first_tile_id, self.cur_addr.fine_y,
+                                                  self.background_half)  # self.name_table_0[self.idx]
+            self.tail_number += 1
+            self.idx += 1
+            l2, u2 = self.cardridge.get_tile_data(second_tile_id, self.cur_addr.fine_y,
+                                                  self.background_half)  # self.name_table_0[self.idx]
+
+            l = (l1 << 8) | l2
+            u = (u1 << 8) | u2
+
+            self.shiftRegister1.write(l)
+            self.shiftRegister1.write(u)
+
+
+        # visible scanline section
+        if self.scanline >= 0 and self.scanline <= 239 and self.render_background == True:
+            if self.scanline == 0 and self.cycle == 0:
+                print("******** visible scanline start! ***********  addr:{}".format(hex(self.cur_addr.get_vram_address())))
+
+            if self.scanline == 239 and self.cycle == 0:
+                print("******** visible scanline end! ***********  addr:{}".format(hex(self.cur_addr.get_vram_address())))
+
+            if self.cycle >= 1 and self.cycle <= 256 or (self.cycle >=321 and self.cycle <= 340):   # screen width - 256px
+
+                if self.cycle % 8 == 2:
+                    # GET TILE ID
+                    self.next_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+                    #print("cycle:{}, get tile id:{}  address:{}".format(self.cycle, self.next_tile_id, hex(self.cur_addr.get_vram_address())))
+                    #if self.scanline % 8 == 0 and self.cycle > 0:
+                    #    self.debug_tile += hex(self.cur_addr.get_vram_address()) + "  " + hex(self.next_tile_id) + "  | "
+
+                if self.cycle % 8 == 4:
+                    #print("cycle:{}, get attribute byte".format(self.cycle))
+                    pass
+
+                if self.cycle % 8 == 6:
+                    #print("cycle:{}, get tile low byte".format(self.cycle))
+                    self.next_tile_low, u1 = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
+                                                          self.background_half)
+
+                if self.cycle % 8 == 0:
+                    #print("cycle:{}, get tile high byte".format(self.cycle))
+                    l1, self.next_tile_high = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
+                                                          self.background_half)
+
+                    self.cur_addr.increment_tile_x()
+
+                if self.cycle % 8 == 1 and self.cycle > 1:
+                    #print("cycle:{}, reload shift registers".format(self.cycle))
+                    v = (self.shiftRegister1.read() & 0xFF00) | self.next_tile_low
+                    self.shiftRegister1.write(v)
+                    v = (self.shiftRegister2.read() & 0xFF00) | self.next_tile_high
+                    self.shiftRegister2.write(v)
+
+            if self.cycle >= 1 and self.cycle <= 256:
+                p = self.palette[0x00]
+                if self.render_background:
+                    b1 = self.shiftRegister1.shift()
+                    b2 = self.shiftRegister2.shift()
+                    color = b1 | (b2 << 1)
+                    p = self.palette[0x00]
+                    if color == 1:
+                        p = self.palette[0x16]
+                    elif color == 2:
+                        p = self.palette[0x26]
+                    elif color == 3:
+                        p = self.palette[0x31]
+
+                self.frame.set_pixel(self.cycle - 1, self.scanline, p)
+
+            if self.cycle == 256:
+                self.cur_addr.increment_tile_y()
+
+        if self.scanline >= 0 and self.scanline <= 239:
+            if self.cycle == 257:
+                self.cur_addr.base_name_table = self.tmp_addr.base_name_table
+                self.cur_addr.tile_x = self.tmp_addr.tile_x
+
+        if self.scanline == 241 and self.cycle == 1:
+            print("PPU: ----------------------> SET v blank")
+            if self.enable_bg_render:
+                print("Execute enabling rendering")
+                self.render_background = True
+            self.vblank = 1
+            self.status = self.status | (1 << 7)
+            if self.enable_nmi:
+                self.raise_nmi = True
+
+        if self.scanline == 261:
+            #print("scanline 261")
+            if self.cycle >= 280 and self.cycle <= 304:
+                self.cur_addr.base_name_table = self.tmp_addr.base_name_table
+                self.cur_addr.tile_y = self.tmp_addr.tile_y
+                self.cur_addr.fine_y = self.tmp_addr.fine_y
+
+        # at end increment cycle and scanline
+        self.cycle += 1
+        if self.cycle == 341:   # scanline last 341 ppu cycles(we numbering from 0)
+            self.cycle = 0
+            self.scanline += 1
+            if self.debug_tile: print(self.debug_tile)
+            self.debug_tile = ""
+            if self.scanline == 262:    # ppu render 262 scanlines, -1, 0, 1-260
+                self.scanline = -1
+                print
+                self.screen.update(self.frame)
+
+
+
+
+
     def clock(self):
+        self.clock2()
+        return
 
         if self.scanline == -1 and self.cycle == 0:
             print("Start new frame")
@@ -136,7 +304,7 @@ class Ppu:
                 u = (u1 << 8) | u2
 
                 self.shiftRegister1.write(l)
-                self.shiftRegister1.write(u)
+                self.shiftRegister2.write(u)
 
         if self.cycle == 0:
             self.tail_number = self.tail_base_number
@@ -225,72 +393,80 @@ class Ppu:
     def read(self, address):
 
         if address == 0x2002:
-            #val = self.read_buffer & 0x1f | self.status & 0xe0
-            val = self.status
-            print("PPU read 0x2002 val:{}".format(hex(val)))
+            val = self.read_buffer & 0x1f | self.status & 0xe0
+            #val = self.status
+            print("PPU STATUS read 0x2002 val:{}".format(hex(val)))
             self.status = self.status & (0 << 7)    # read clears vertical blank
             self.ppu_addr_flag = 0
+            self.address_latch = 0
             return val
         elif address == 0x2007:
+            print("PPU read address:{}".format(hex(self.vram_addr)))
+            val = 0
             if self.vram_addr >= 0x2000 and self.vram_addr <= 0x3eff:
                 index = self.vram_addr & 0x3ff
                 if self.cardridge.mirroring == 0:   # horizontal
                     if self.vram_addr >= 0x2000 and self.vram_addr <= 0x23ff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_0[index]
-                        return val
+                        #return val
                     elif self.vram_addr >= 0x2400 and self.vram_addr <= 0x27ff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_0[index]
-                        return val
+                        #return val
                     elif 0x2800 <= self.vram_addr <= 0x2bff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_1[index]
-                        return val
+                        #return val
                     elif self.vram_addr >= 0x2c00 and self.vram_addr <= 0x2fff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_1[index]
-                        return val
+                        #return val
                 else:
                     if self.vram_addr >= 0x2000 and self.vram_addr <= 0x23ff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_0[index]
-                        return val
+                        #return val
                     elif self.vram_addr >= 0x2400 and self.vram_addr <= 0x27ff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_1[index]
-                        return val
+                        #return val
                     elif self.vram_addr >= 0x2800 and self.vram_addr <= 0x2bff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_0[index]
-                        return val
+                        #return val
                     elif self.vram_addr >= 0x2c00 and self.vram_addr <= 0x2fff:
                         val = self.read_buffer
                         self.read_buffer = self.name_table_1[index]
-                        return val
+                        #return val
             elif self.vram_addr >= 0x3f00 and self.vram_addr <= 0x3fff:
                 index = self.vram_addr & 0x3ff
                 self.read_buffer = self.name_table_1[index]
-
-                return self.palette_ram[self.vram_addr & 0xff]
+                val = self.palette_ram[self.vram_addr & 0xff]
+                #return self.palette_ram[self.vram_addr & 0xff]
             elif self.vram_addr >= 0 and self.vram_addr <= 0x1fff:
                 val = self.read_buffer
                 self.read_buffer = self.cardridge.chr[self.vram_addr]
-                return val
+                #return val
             else:
                 raise NotImplementedError("PPUREAD for addr:{}".format(hex(self.vram_addr)))
 
             if self.nametable_inc:
                 self.vram_addr += 32
+                self.cur_addr.vram_addr += 32
             else:
                 self.vram_addr += 1
-            return
+                self.cur_addr.vram_addr += 1
+            return val
         else:
             raise NotImplementedError("PPU read not implemented, address:{}".format(hex(address)))
 
     def write(self, address, data):
         if address == 0x2000:
             print("PPUCTRL write:{}".format(hex(data)))
+
+            #self.cur_addr.set_name_table(data & 0x3)
+            self.tmp_addr.set_base_name_table(data & 0x3)
 
             if data & 0x80:
                 print("PPU: NMI enabled")
@@ -300,8 +476,10 @@ class Ppu:
 
             if data & 0x04:
                 self.nametable_inc = 1
+                print("VRAM INC by 32")
             else:
                 self.nametable_inc = 0
+                print("VRAM INC by 1")
 
             if data & 0x10:
                 print(" Background pattern table 0x1000")
@@ -315,9 +493,12 @@ class Ppu:
             print("PPUMASK write:{}".format(hex(data)))
 
             if data & 0x8:
-                self.render_background = True
+                #self.render_background = True
+                print("Schedule Enable background rendering!")
+                self.enable_bg_render = True
             else:
                 self.render_background = False
+                self.enable_bg_render = False
 
             return
         elif address == 0x2003:
@@ -327,18 +508,29 @@ class Ppu:
             print("PPU OAM DATA write:{}".format(hex(data)))
             return
         elif address == 0x2005:
-            print("PPUSCROLL write:{}".format(hex(data)))
+            if self.address_latch == 0:
+                self.address_latch = 1
+                self.tmp_addr.scroll_x(data)
+            else:
+                self.address_latch = 0
+                self.tmp_addr.scroll_y(data)
+            print("PPU SCROLL write:{}".format(hex(data)))
             return
         elif address == 0x2006:
-            if self.ppu_addr_flag == 0:
-                self.ppu_addr_flag = 1
-                self.ppu_addr = 0x000 | (data << 8)
+            print("PPUADDR write:{}".format(hex(data)))
+            if self.address_latch == 0:
+                self.address_latch = 1
+                self.ppu_addr = 0x0000 | (data << 8)
             else:
-                self.ppu_addr_flag = 0
+                self.address_latch = 0
                 self.ppu_addr = self.ppu_addr | data
                 self.vram_addr = self.ppu_addr
+
+                self.cur_addr.set_address(self.ppu_addr)
+                self.tmp_addr.set_address(self.ppu_addr)
+
             x = 3
-            print("PPUADDR write:{}".format(hex(data)))
+
             return
         elif address == 0x2007:
             if self.vram_addr >= 0x2000 and self.vram_addr <= 0x3eff:
@@ -375,8 +567,10 @@ class Ppu:
 
             if self.nametable_inc:
                 self.vram_addr += 32
+                self.cur_addr.vram_addr += 32
             else:
                 self.vram_addr += 1
+                self.cur_addr.vram_addr += 1
             return
         else:
             raise NotImplementedError("PPU write not implemented. addr:{}  data:{}".format(hex(address), hex(data)))
@@ -385,6 +579,72 @@ class Ppu:
         if self.start_addr <= address < self.end_addr:
             return True
         return False
+
+
+class VramRegister:
+
+    def __init__(self):
+        self.tile_row = 0
+        self.tile_x = 0
+        self.tile_y = 0
+        self.nametable_x = 0
+        self.nametable_y = 0
+        self.vram_addr = 0x0000
+        self.base_name_table = 0x2000
+        self.fine_y = 0
+
+    def set_address(self, address):
+        self.vram_addr = address
+        self.tile_x = address & 0x1f
+        self.tile_y = address & 0x3e0
+        self.set_base_name_table(address & 0xc00)
+
+        if self.tile_x == 11 and self.tile_y==832:
+            x=3
+
+    def get_address(self):
+        return self.vram_addr
+
+    def increment_tile_x(self):
+        if self.tile_x == 31:
+            self.tile_x = 0
+            self.vram_addr ^= 0x400
+        else:
+            self.tile_x += 1
+            self.vram_addr += 1
+
+    def increment_tile_y(self):
+        if self.fine_y < 7:
+            self.fine_y += 1
+        else:
+            self.fine_y = 0
+            if self.tile_y == 29:
+                self.tile_y = 0
+                self.vram_addr ^= 0x800
+            else:
+                self.tile_y += 1
+
+    def get_vram_address(self):
+        return self.base_name_table | (self.tile_y << 5) | self.tile_x
+
+    def set_base_name_table(self, val):
+        if val == 0:
+            self.base_name_table = 0x2000
+        elif val == 1:
+            self.base_name_table = 0x2400
+        elif val == 2:
+            self.base_name_table = 0x2800
+        elif val == 3:
+            self.base_name_table = 0x2C00
+
+    def scroll_x(self, px_num): # 0-255
+        self.tile_x = px_num // 8
+
+    def scroll_y(self, px_num): # 0 - 239
+        self.tile_y = px_num // 8
+
+    def __repr__(self):
+        return "address:{}".format(hex(self.vram_addr))
 
 
 class ShiftRegister:
