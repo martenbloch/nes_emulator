@@ -213,12 +213,12 @@ class Ppu:
                 if self.cycle % 8 == 6:
                     #print("cycle:{}, get tile low byte".format(self.cycle))
                     self.next_tile_low, u1 = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
-                                                          1)
+                                                          self.background_half)
 
                 if self.cycle % 8 == 0:
                     #print("cycle:{}, get tile high byte".format(self.cycle))
                     l1, self.next_tile_high = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
-                                                          1)
+                                                          self.background_half)
 
                     self.cur_addr.increment_tile_x()
 
@@ -255,9 +255,9 @@ class Ppu:
 
         if self.scanline == 241 and self.cycle == 1:
             print("PPU: ----------------------> SET v blank")
-            if self.enable_bg_render:
-                print("Execute enabling rendering")
-                self.render_background = True
+            #if self.enable_bg_render:
+                #print("Execute enabling rendering")
+                #self.render_background = True
             self.vblank = 1
             self.status = self.status | (1 << 7)
             if self.enable_nmi:
@@ -502,10 +502,12 @@ class Ppu:
             if data & 0x8:
                 #self.render_background = True
                 print("Schedule Enable background rendering!")
-                self.enable_bg_render = True
+                #self.enable_bg_render = True
+                self.render_background = True
             else:
+                #self.render_background = False
+                #self.enable_bg_render = False
                 self.render_background = False
-                self.enable_bg_render = False
 
             return
         elif address == 0x2003:
