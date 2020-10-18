@@ -8,12 +8,13 @@ class Nes:
     def __init__(self, screen):
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
         #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
-        self.cartridge = cpu.Cardrige("tests/donkey.nes")
+        #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
         #self.cartridge = cpu.Cardrige("tests/goal3.nes")
         #self.cartridge = cpu.Cardrige("tests/demo_ntsc.nes")
         #self.cartridge = cpu.Cardrige("tests/vram_access.nes")
+        #self.cartridge = cpu.Cardrige("tests/palette_ram.nes")
         #self.cartridge = cpu.Cardrige("tests/vbl_clear_time.nes")
         #self.cartridge = cpu.Cardrige("tests/scanline.nes")
 

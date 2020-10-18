@@ -455,7 +455,17 @@ class Ppu:
             elif self.vram_addr >= 0x3f00 and self.vram_addr <= 0x3fff:
                 index = self.vram_addr & 0x3ff
                 self.read_buffer = self.name_table_1[index]
-                val = self.palette_ram[self.vram_addr & 0xff]
+                addr = self.vram_addr & 0x001F
+                if addr == 0x0010:
+                    addr = 0x0000
+                if addr == 0x0014:
+                    addr = 0x0004
+                if addr == 0x0018:
+                    addr = 0x0008
+                if addr == 0x001C:
+                    addr = 0x000C
+
+                val = self.palette_ram[addr]
                 #return self.palette_ram[self.vram_addr & 0xff]
             elif self.vram_addr >= 0 and self.vram_addr <= 0x1fff:
                 val = self.read_buffer
@@ -571,7 +581,17 @@ class Ppu:
                         self.name_table_1[index] = data
 
             elif self.vram_addr >= 0x3f00 and self.vram_addr <= 0x3fff:
-                self.palette_ram[self.vram_addr & 0x1f] = data
+
+                addr = self.vram_addr & 0x001F
+                if addr == 0x0010:
+                    addr = 0x0000
+                if addr == 0x0014:
+                    addr = 0x0004
+                if addr == 0x0018:
+                    addr = 0x0008
+                if addr == 0x001C:
+                    addr = 0x000C
+                self.palette_ram[addr] = data
             elif self.vram_addr >= 0 and self.vram_addr <= 0x1fff:
                 self.cardridge.chr[self.vram_addr] = data
                 pass
