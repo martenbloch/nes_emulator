@@ -34,6 +34,8 @@ class Cpu:
         # program counter 16 bit
         self.pc = pc
 
+        self.enable_print = False
+
         # status register 8 bit
         self.sr = StatusRegister()
 
@@ -358,12 +360,13 @@ class Cpu:
             # read next instruction
             if self.pc == 0xe101:
                 x=3
-            #print(ascii(self))
+
             instruction = self.read(self.pc)
             self.pc += 1
 
             self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
-            #print(ascii(self.instructions[instruction]))
+            if self.enable_print:
+                print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
 
         self.cycles_left_to_perform_current_instruction -= 1
@@ -611,10 +614,12 @@ class And:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.data = 0x00
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+        self.data = operand
 
         self.cpu.a = self.cpu.a & operand
 
@@ -625,7 +630,7 @@ class And:
         return self.addressMode.cycles
 
     def __repr__(self):
-        return "AND {}".format(self.addressMode)
+        return "AND {} = {}".format(self.addressMode, self.data)
 
 
 class Asl:
@@ -1324,10 +1329,12 @@ class Lda:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.data = 0x00
 
     def execute(self):
         address = self.addressMode.get_address()
         operand = self.cpu.read(address)
+        self.data = operand
         self.cpu.a = operand
 
         if self.cpu.a == 0:
@@ -1338,17 +1345,19 @@ class Lda:
         return self.addressMode.cycles
 
     def __repr__(self):
-        return "LDA {}".format(ascii(self.addressMode))
+        return "LDA {} ={}".format(ascii(self.addressMode), self.data)
 
 
 class Ldx:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.data = 0x00
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+        self.data = operand
         self.cpu.x = operand
 
         if self.cpu.x == 0:
@@ -1359,7 +1368,7 @@ class Ldx:
         return self.addressMode.cycles
 
     def __repr__(self):
-        return "LDX {}".format(ascii(self.addressMode))
+        return "LDX {} = {}".format(ascii(self.addressMode), self.data)
 
 
 class Ldy:

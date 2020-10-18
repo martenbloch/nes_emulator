@@ -18,6 +18,7 @@ def test_cpu():
     bus.connect(apu)
     bus.connect(p)
 
+    c.enable_print = True
     #c.reset()
     while True:
         if c.pc == 0xC66E:
