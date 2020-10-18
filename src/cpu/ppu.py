@@ -163,11 +163,21 @@ class Ppu:
 
     def clock2(self):
 
-        if self.scanline == -1 and self.cycle == 0 and self.render_background and self.is_odd:
-            self.cycle = 1
-
-        if self.scanline == -1 and self.cycle == 1 and self.render_background:
+        if self.scanline == -1 and self.cycle == 0:
             print("scanline -1")
+
+        if self.scanline == -1 and self.cycle == 1:
+            print("PPU: ----------------------> CLEAR v blank")
+            self.vblank = 0
+            self.status = self.status & (0 << 7)
+
+        if self.scanline == -1:
+            if self.cycle >= 280 and self.cycle <= 304:
+                self.cur_addr.base_name_table = self.tmp_addr.base_name_table
+                self.cur_addr.tile_y = self.tmp_addr.tile_y
+                self.cur_addr.fine_y = self.tmp_addr.fine_y
+
+        if self.scanline == -1 and self.cycle == 322 and self.render_background:
             # load id's of 2 first tiles
             first_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
             self.cur_addr.increment_tile_x()
@@ -188,6 +198,8 @@ class Ppu:
             self.shiftRegister1.write(l)
             self.shiftRegister1.write(u)
 
+        if self.scanline == 0 and self.cycle == 0 and self.is_odd:
+            self.cycle = 1
 
         # visible scanline section
         if self.scanline >= 0 and self.scanline <= 239 and self.render_background == True:
@@ -263,12 +275,6 @@ class Ppu:
             if self.enable_nmi:
                 self.raise_nmi = True
 
-        if self.scanline == 261:
-            #print("scanline 261")
-            if self.cycle >= 280 and self.cycle <= 304:
-                self.cur_addr.base_name_table = self.tmp_addr.base_name_table
-                self.cur_addr.tile_y = self.tmp_addr.tile_y
-                self.cur_addr.fine_y = self.tmp_addr.fine_y
 
         # at end increment cycle and scanline
         self.cycle += 1
@@ -277,7 +283,7 @@ class Ppu:
             self.scanline += 1
             if self.debug_tile: print(self.debug_tile)
             self.debug_tile = ""
-            if self.scanline == 262:    # ppu render 262 scanlines, -1, 0, 1-260
+            if self.scanline == 261:    # ppu render 262 scanlines, -1, 0, 1-260
                 self.scanline = -1
                 if self.is_odd:
                     self.is_odd = False
