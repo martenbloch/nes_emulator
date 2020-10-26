@@ -28,22 +28,28 @@ class Nes:
         self.bus.connect(self.cartridge)
         self.bus.connect(self.apu)
         self.bus.connect(self.ppu)
-        self.num_of_cycles = 0
+        self.num_of_cycles = 1
 
     def start(self):
         while True:
             self.ppu.clock()
+            if self.num_of_cycles % 3 == 0:
+                self.c.clock()
+
             if self.ppu.raise_nmi:
                 print("NMI request cyc:{}".format(self.c.clock_ticks))
+                fh = open("log.txt", "a")
+                fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
+                fh.close()
+
                 self.c.nmi()
                 self.ppu.raise_nmi = False
 
-            if self.num_of_cycles % 3 == 0:
-                self.c.clock()
             self.num_of_cycles += 1
 
     def reset(self):
         self.c.reset()
+        self.ppu.reset()
 
 
 class Screen:

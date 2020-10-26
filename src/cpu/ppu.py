@@ -5,7 +5,7 @@ import random
 class Ppu:
     def __init__(self, screen, cardridge):
         self.cycle = 0
-        self.scanline = -1
+        self.scanline = 0
         self.screen = screen
         self.frame = frame.Frame(262, 341)
         self.status = 0x00
@@ -128,6 +128,10 @@ class Ppu:
 
         self.enable_bg_render = False
 
+        self.last_written_data = 0x00
+
+        self.frame_cnt = 1
+
     def read_video_mem(self, address):
         if address >= 0x2000 and address <= 0x3eff:
             index = address & 0x3ff
@@ -198,7 +202,7 @@ class Ppu:
             self.shiftRegister1.write(l)
             self.shiftRegister1.write(u)
 
-        if self.scanline == 0 and self.cycle == 0 and self.is_odd:
+        if self.scanline == 0 and self.cycle == 0 and self.is_odd and self.render_background:
             self.cycle = 1
 
         # visible scanline section
@@ -264,6 +268,9 @@ class Ppu:
             if self.cycle == 257:
                 self.cur_addr.base_name_table = self.tmp_addr.base_name_table
                 self.cur_addr.tile_x = self.tmp_addr.tile_x
+
+        if self.scanline == 240 and self.cycle == 0:
+            self.frame_cnt += 1
 
         if self.scanline == 241 and self.cycle == 1:
             print("PPU: ----------------------> SET v blank")
@@ -405,8 +412,13 @@ class Ppu:
 
     def read(self, address):
 
+        if address == 0x2000 or address == 0x2001 or address == 0x2006 or address == 0x2005 or address == 0x2003:
+            return 0x00
+
         if address == 0x2002:
-            val = self.read_buffer & 0x1f | self.status & 0xe0
+
+            val = self.last_written_data & 0x1f | self.status & 0xe0
+            #val = self.read_buffer & 0x1f | self.status & 0xe0
             #val = self.status
             print("PPU STATUS read 0x2002 val:{}".format(hex(val)))
             self.status = self.status & (0 << 7)    # read clears vertical blank
@@ -486,6 +498,7 @@ class Ppu:
 
     def write(self, address, data):
         if address == 0x2000:
+            self.last_written_data = data
             print("PPUCTRL write:{}".format(hex(data)))
 
             #self.cur_addr.set_name_table(data & 0x3)
@@ -513,6 +526,7 @@ class Ppu:
 
             return
         elif address == 0x2001:
+            self.last_written_data = data
             print("PPUMASK write:{}".format(hex(data)))
 
             if data & 0x8:
@@ -527,12 +541,15 @@ class Ppu:
 
             return
         elif address == 0x2003:
+            self.last_written_data = data
             print("PPU OAM ADDR write:{}".format(hex(data)))
             return
         elif address == 0x2004:
+            self.last_written_data = data
             print("PPU OAM DATA write:{}".format(hex(data)))
             return
         elif address == 0x2005:
+            self.last_written_data = data
             if self.address_latch == 0:
                 self.address_latch = 1
                 self.tmp_addr.scroll_x(data)
@@ -542,6 +559,7 @@ class Ppu:
             print("PPU SCROLL write:{}".format(hex(data)))
             return
         elif address == 0x2006:
+            self.last_written_data = data
             print("PPUADDR write:{}".format(hex(data)))
             if self.address_latch == 0:
                 self.address_latch = 1
@@ -615,6 +633,9 @@ class Ppu:
         if self.start_addr <= address < self.end_addr:
             return True
         return False
+
+    def reset(self):
+        self.cycle = 24
 
 
 class VramRegister:
