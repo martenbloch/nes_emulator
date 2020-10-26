@@ -348,25 +348,55 @@ class Cpu:
 
         self.cycles_left_to_perform_current_instruction = 0
 
+    def dbg_inst_bytes(self, i_size):
+        b = ""
+        for i in range(i_size):
+            b += "$" + to_str_hex(self.read(self.pc + i))
+        return b
+
     def fetch(self):
         pass
 
     def decode(self, a_instruction):
         pass
 
+    def to_hex(self, val, num_fields=2):
+        return hex(val)[2:].zfill(num_fields)
+
+    def to_str(self):
+        return "A:{} X:{} Y:{} P:{} SP:{} ".format(self.to_hex(self.a), self.to_hex(self.x), self.to_hex(self.y), self.to_hex(self.sr.to_byte()), self.to_hex(self.sp))
+
+    def inst_as_bytes(self, instruction_size):
+        s = ""
+        for i in range(instruction_size):
+            s += "${} ".format(self.to_hex(self.read(self.pc + i)))
+        return s.ljust(12, " ")
+
     def clock(self):
         if self.cycles_left_to_perform_current_instruction == 0:
 
-            # read next instruction
-            if self.pc == 0xe101:
-                x=3
+            log_msg = ""
+            cpu_state_before = ""
 
             instruction = self.read(self.pc)
+            log_msg += "{} ".format(self.to_hex(self.pc, 4))
+            log_msg += self.inst_as_bytes(self.instructions[instruction].size())
+            cpu_state_before = self.to_str()
+            ppu = self.bus.get_device_by_address(0x2000)
+            cpu_state_before += "CYC:{} SL:{} FC:{} CPU Cycle:{}\n".format(str(ppu.cycle).ljust(3, ' '), str(ppu.scanline).ljust(3, ' '), 1, self.clock_ticks)
             self.pc += 1
 
             self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
-            if self.enable_print:
-                print(ascii(self.instructions[instruction]) + "   " + ascii(self))
+            log_msg += ascii(self.instructions[instruction])
+            log_msg += cpu_state_before
+
+            #if self.clock_ticks < 100:
+            #print(log_msg.upper())
+            fh = open("log.txt", "a")
+            fh.write(log_msg.upper())
+            fh.close()
+
+                #print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
 
         self.cycles_left_to_perform_current_instruction -= 1
@@ -605,6 +635,9 @@ class Adc:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "ADC {}".format(self.addressMode)
 
@@ -615,11 +648,14 @@ class And:
         self.cpu = cpu
         self.addressMode = address_mode
         self.data = 0x00
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
         self.data = operand
+
+        self.str = ("AND " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
 
         self.cpu.a = self.cpu.a & operand
 
@@ -629,8 +665,12 @@ class And:
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "AND {} = {}".format(self.addressMode, self.data)
+        return self.str
+        #return "AND {} = {}".format(self.addressMode, self.data)
 
 
 class Asl:
@@ -667,6 +707,9 @@ class Asl:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "ASL {}".format(ascii(self.addressMode))
 
@@ -685,6 +728,9 @@ class Bcc:
             return self.addressMode.cycles
         return 2
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "BCC {}".format(ascii(self.addressMode))
 
@@ -695,16 +741,24 @@ class Bcs:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
+
+        self.str = ("BCS " + ascii(self.addressMode) + to_str_hex(addr, 4)).ljust(46, " ")
+
         if self.cpu.sr.c == 1:
             self.cpu.pc = addr
             return self.addressMode.cycles
         return 2
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "BCS {}".format(ascii(self.addressMode))
+        return self.str
+        #return "BCS {}".format(ascii(self.addressMode))
 
 
 class Beq:
@@ -720,6 +774,9 @@ class Beq:
             return self.addressMode.cycles
         return 2
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "BEQ {}".format(ascii(self.addressMode))
 
@@ -729,10 +786,14 @@ class Bit:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+
+        self.str = (self.addressMode.get_bytes() + "BIT " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
+
         self.cpu.sr.n = (operand >> 7) & 0x1
         self.cpu.sr.v = (operand >> 6) & 0x1
         if operand & self.cpu.a == 0:
@@ -740,8 +801,12 @@ class Bit:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "BIT {}".format(ascii(self.addressMode))
+        return self.str
+        #return "BIT {}".format(ascii(self.addressMode))
 
 
 class Bmi:
@@ -757,6 +822,9 @@ class Bmi:
             return self.addressMode.cycles
         return 2
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "BMI {}".format(ascii(self.addressMode))
 
@@ -766,16 +834,24 @@ class Bne:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
+
+        self.str = (self.addressMode.get_bytes() + "BNE " + ascii(self.addressMode) + to_str_hex(addr)).ljust(46, " ")
+
         if self.cpu.sr.z == 0:
             self.cpu.pc = addr
             return self.addressMode.cycles
         return 2
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "BNE {}".format(ascii(self.addressMode))
+        return self.str
+        #return "BNE {}".format(ascii(self.addressMode))
 
 
 class Bpl:
@@ -783,16 +859,22 @@ class Bpl:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
+        self.str = ("BPL " + ascii(self.addressMode) + to_str_hex(addr)).ljust(46," ")
         if self.cpu.sr.n == 0:
             self.cpu.pc = addr
             return self.addressMode.cycles
         return 2
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "BPL {}".format(ascii(self.addressMode))
+        return self.str
+        #return "BPL {}".format(ascii(self.addressMode))
 
 
 class Brk:
@@ -822,6 +904,9 @@ class Brk:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
 
 class Bvc:
 
@@ -835,6 +920,9 @@ class Bvc:
             self.cpu.pc = address
             return self.addressMode.cycles
         return 2
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "BVC {}".format(ascii(self.addressMode))
@@ -853,6 +941,9 @@ class Bvs:
             return self.addressMode.cycles
         return 2
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "BVS {}".format(ascii(self.addressMode))
 
@@ -866,6 +957,9 @@ class Clc:
     def execute(self):
         self.cpu.sr.c = 0
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "CLC {}".format(ascii(self.addressMode))
@@ -881,8 +975,11 @@ class Cld:
         self.cpu.sr.d = 0
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "CLD {}".format(ascii(self.addressMode))
+        return "CLD".ljust(46, ' ')
 
 
 class Cli:
@@ -890,6 +987,9 @@ class Cli:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+
+    def size(self):
+        return self.addressMode.size
 
     def execute(self):
         self.cpu.sr.i = 0
@@ -905,6 +1005,9 @@ class Clv:
         self.cpu.sr.v = 0
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "CLV {}".format(ascii(self.addressMode))
 
@@ -914,10 +1017,13 @@ class Cmp:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+
+        self.str = ("CMP " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
 
         result = self.cpu.a - operand
 
@@ -938,8 +1044,12 @@ class Cmp:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "CMP {}".format(ascii(self.addressMode))
+        return self.str
+        #return "CMP {}".format(ascii(self.addressMode))
 
 
 class Cpx:
@@ -947,10 +1057,13 @@ class Cpx:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+
+        self.str = (self.addressMode.get_bytes() + "CPX " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
 
         result = self.cpu.x - operand
 
@@ -971,8 +1084,12 @@ class Cpx:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "CPX {}".format(ascii(self.addressMode))
+        return self.str
+        #return "CPX {}".format(ascii(self.addressMode))
 
 
 class Cpy:
@@ -980,10 +1097,13 @@ class Cpy:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+
+        self.str = (self.addressMode.get_bytes() + "CPY " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
 
         result = self.cpu.y - operand
 
@@ -1004,8 +1124,12 @@ class Cpy:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "CPY {}".format(ascii(self.addressMode))
+        return self.str
+        #return "CPY {}".format(ascii(self.addressMode))
 
 
 class Dcp:
@@ -1042,6 +1166,9 @@ class Dcp:
         self.cpu.write(addr, operand)
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "DCP {}".format(ascii(self.addressMode))
 
@@ -1068,6 +1195,9 @@ class Dec:
         self.cpu.write(address, operand)
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "DEC {}".format(ascii(self.addressMode))
 
@@ -1087,8 +1217,11 @@ class Dex:
         self.cpu.sr.n = (self.cpu.x & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "DEX {}".format(self.addressMode)
+        return "      DEX".ljust(46, " ")
 
 
 class Dey:
@@ -1106,8 +1239,11 @@ class Dey:
         self.cpu.sr.n = (self.cpu.y & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "DEY {}".format(ascii(self.addressMode))
+        return "     DEY ".ljust(46, " ")
 
 
 class Eor:
@@ -1126,6 +1262,9 @@ class Eor:
             self.cpu.sr.z = 0
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "EOR {}".format(ascii(self.addressMode))
@@ -1152,6 +1291,9 @@ class Inc:
         self.cpu.write(address, operand)
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "INC {}".format(ascii(self.addressMode))
 
@@ -1174,6 +1316,9 @@ class Inx:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "INX {}".format(ascii(self.addressMode))
 
@@ -1195,8 +1340,11 @@ class Iny:
         self.cpu.sr.n = (self.cpu.y & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "INY {}".format(self.addressMode)
+        return "     INY".ljust(46, " ")
 
 
 class Isb:
@@ -1261,6 +1409,9 @@ class Isb:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "ISB {}".format(ascii(self.addressMode))
 
@@ -1270,16 +1421,23 @@ class Jmp:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         #address = self.addressMode.get_address()
         #self.addressMode.fetch()
         self.cpu.pc = self.addressMode.get_address()
+
+        self.str = ("JMP " + ascii(self.addressMode) + to_str_hex(self.cpu.pc)).ljust(46, " ")
         #self.cpu.pc = (self.cpu.read(self.cpu.pc + 2) << 8) | self.cpu.read(self.cpu.pc + 1)
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "JMP {}".format(ascii(self.addressMode))
+        return self.str
+        #return "JMP {}".format(ascii(self.addressMode))
 
 
 # Jump to new location, save return address
@@ -1287,9 +1445,13 @@ class Jsr:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
+
+        self.str = ("JSR " + ascii(self.addressMode) + to_str_hex(addr)).ljust(46, " ")
+
         self.cpu.push(((self.cpu.pc-1) & 0xFF00) >> 8)  # -1 because address mode will move pc to the next instruction
         self.cpu.push((self.cpu.pc-1) & 0xFF)
 
@@ -1298,8 +1460,12 @@ class Jsr:
         #self.cpu.pc = (self.cpu.read(self.cpu.pc + 2) << 8) + self.cpu.read(self.cpu.pc + 1)
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "JSR {}".format(ascii(self.addressMode))
+        return self.str
+        #return "JSR {}".format(ascii(self.addressMode))
 
 
 class Lax:
@@ -1321,6 +1487,9 @@ class Lax:
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "LAX {}".format(ascii(self.addressMode))
 
@@ -1330,12 +1499,15 @@ class Lda:
         self.cpu = cpu
         self.addressMode = address_mode
         self.data = 0x00
+        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
         operand = self.cpu.read(address)
         self.data = operand
         self.cpu.a = operand
+
+        self.str = ("LDA " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
 
         if self.cpu.a == 0:
             self.cpu.sr.z = 1
@@ -1344,8 +1516,12 @@ class Lda:
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "LDA {} ={}".format(ascii(self.addressMode), self.data)
+        return self.str
+        #return "LDA {} ={}".format(ascii(self.addressMode), self.data)
 
 
 class Ldx:
@@ -1353,6 +1529,7 @@ class Ldx:
         self.cpu = cpu
         self.addressMode = address_mode
         self.data = 0x00
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
@@ -1360,6 +1537,7 @@ class Ldx:
         self.data = operand
         self.cpu.x = operand
 
+        self.str = ("LDX " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
         if self.cpu.x == 0:
             self.cpu.sr.z = 1
         else:
@@ -1367,19 +1545,26 @@ class Ldx:
         self.cpu.sr.n = (self.cpu.x & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "LDX {} = {}".format(ascii(self.addressMode), self.data)
+        return self.str
+        #return "LDX {} = {}".format(ascii(self.addressMode), self.data)
 
 
 class Ldy:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
         operand = self.cpu.read(address)
         self.cpu.y = operand
+
+        self.str = ("LDY " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
 
         if self.cpu.y == 0:
             self.cpu.sr.z = 1
@@ -1388,8 +1573,12 @@ class Ldy:
         self.cpu.sr.n = (self.cpu.y & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "LDY {}".format(ascii(self.addressMode))
+        return self.str
+        #return "LDY {}".format(ascii(self.addressMode))
 
 
 class Lsr:
@@ -1422,6 +1611,9 @@ class Lsr:
             self.cpu.sr.z = 0
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "LSR {}".format(ascii(self.addressMode))
 
@@ -1435,6 +1627,9 @@ class Nop:
         self.addressMode.get_address()
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "NOP {}".format(ascii(self.addressMode))
 
@@ -1444,10 +1639,13 @@ class Ora:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+
+        self.str = ("ORA " + ascii(self.addressMode) + to_str_hex(operand)).ljust(46, " ")
 
         self.cpu.a = self.cpu.a | operand
 
@@ -1459,8 +1657,12 @@ class Ora:
             self.cpu.sr.z = 0
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "ORA {}".format(ascii(self.addressMode))
+        return self.str
+        #return "ORA {}".format(ascii(self.addressMode))
 
 
 class Pha:
@@ -1472,6 +1674,9 @@ class Pha:
     def execute(self):
         self.cpu.push(self.cpu.a)
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "PHA {}".format(ascii(self.addressMode))
@@ -1488,6 +1693,9 @@ class Php:
         val = self.cpu.sr.to_byte() | (1 << 5) | (1 << 4)
         self.cpu.push(val)
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "PHP {}".format(ascii(self.addressMode))
@@ -1509,6 +1717,9 @@ class Pla:
             self.cpu.sr.z = 0
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "PLA {}".format(ascii(self.addressMode))
 
@@ -1521,6 +1732,9 @@ class Plp:
     def execute(self):
         self.cpu.sr.from_byte(self.cpu.pop())
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "PLP {}".format(ascii(self.addressMode))
@@ -1548,6 +1762,9 @@ class Rla:
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
 
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "RLA {}".format(ascii(self.addressMode))
@@ -1582,6 +1799,9 @@ class Rol:
         #print("set C: {}".format(self.cpu.sr.c))
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "ROL {}".format(ascii(self.addressMode))
 
@@ -1614,6 +1834,9 @@ class Ror:
         self.cpu.sr.n = (operand & 0x80) >> 7
         #print("set C: {}".format(self.cpu.sr.c))
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "ROR {}".format(ascii(self.addressMode))
@@ -1683,6 +1906,9 @@ class Rra:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "RRA {}".format(ascii(self.addressMode))
 
@@ -1699,6 +1925,9 @@ class Rti:
         hh = self.cpu.pop()
         self.cpu.pc = (hh << 8) | ll
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "RTI {}".format(ascii(self.addressMode))
@@ -1717,8 +1946,11 @@ class Rts:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "RTS {}".format(ascii(self.addressMode))
+        return "     RTS ".ljust(46, " ")
 
 
 class Sax:
@@ -1745,6 +1977,9 @@ class Sax:
         #    self.cpu.sr.c = 0
 
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "SAX {}".format(ascii(self.addressMode))
@@ -1804,6 +2039,9 @@ class Sbc:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "SBC {}".format(ascii(self.addressMode))
 
@@ -1816,6 +2054,9 @@ class Sec:
     def execute(self):
         self.cpu.sr.c = 1
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "SEC {}".format(ascii(self.addressMode))
@@ -1830,6 +2071,9 @@ class Sed:
         self.cpu.sr.d = 1
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "SED {}".format(self.addressMode)
 
@@ -1843,8 +2087,11 @@ class Sei:
         self.cpu.sr.i = 1
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "SEI {}".format(self.addressMode)
+        return "SEI".ljust(46, " ")
 
 
 class Slo:
@@ -1872,6 +2119,9 @@ class Slo:
             self.cpu.sr.z = 0
 
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "SLO {}".format(ascii(self.addressMode))
@@ -1902,6 +2152,9 @@ class Sre:
 
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "SRE {}".format(ascii(self.addressMode))
 
@@ -1910,30 +2163,44 @@ class Sta:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
 
+        self.str = ("STA " + ascii(self.addressMode) + to_str_hex(self.cpu.a)).ljust(46, " ")
+
         self.cpu.write(addr, self.cpu.a)
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "STA {}".format(ascii(self.addressMode))
+        return self.str
+        #return "STA {}".format(ascii(self.addressMode))
 
 
 class Stx:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         abs_addr = self.addressMode.get_address()
 
+        self.str = ("STX " + ascii(self.addressMode) + to_str_hex(abs_addr)).ljust(46, " ")
+
         self.cpu.write(abs_addr, self.cpu.x)
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "STX {}".format(ascii(self.addressMode))
+        return self.str
+        #return "STX {}".format(ascii(self.addressMode))
 
 
 class Sty:
@@ -1948,6 +2215,9 @@ class Sty:
 
         self.cpu.write(addr, self.cpu.y)
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "STY {}".format(ascii(self.addressMode))
@@ -1969,6 +2239,9 @@ class Tax:
         self.cpu.sr.n = (self.cpu.x & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "TAX {}".format(ascii(self.addressMode))
 
@@ -1989,6 +2262,9 @@ class Tay:
         self.cpu.sr.n = (self.cpu.y & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "TAY {}".format(ascii(self.addressMode))
 
@@ -2008,6 +2284,9 @@ class Tsx:
 
         self.cpu.sr.n = (self.cpu.x & 0x80) >> 7
         return self.addressMode.cycles
+
+    def size(self):
+        return self.addressMode.size
 
     def __repr__(self):
         return "TSX {}".format(ascii(self.addressMode))
@@ -2030,6 +2309,9 @@ class Txa:
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "TXA {}".format(ascii(self.addressMode))
 
@@ -2046,8 +2328,11 @@ class Txs:
         print(ascii(self.cpu))
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
-        return "TXS {}".format(ascii(self.addressMode))
+        return "TXS".ljust(46, ' ')
 
 
 class Tya:
@@ -2066,6 +2351,9 @@ class Tya:
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
         return self.addressMode.cycles
 
+    def size(self):
+        return self.addressMode.size
+
     def __repr__(self):
         return "TYA {}".format(self.addressMode)
 
@@ -2079,6 +2367,7 @@ class AddressModeAccumulator:
     def __init__(self, cpu):
         self.cpu = cpu
         self.cycles = 2
+        self.size = 1
 
     def fetch(self):
         return self.cpu.a
@@ -2099,6 +2388,9 @@ class AddressModeAbsolute:
         self.cpu = cpu
         self.abs_address = 0x0000
         self.cycles = cycles
+        self.ll = 0x00
+        self.hh = 0x00
+        self.size = 3
 
     def fetch(self):
         # after instruction we have 16bit address
@@ -2115,15 +2407,18 @@ class AddressModeAbsolute:
     #def abs_address(self):
     #    return self.abs_address
     def get_address(self):
-        ll = self.cpu.read(self.cpu.pc)
+        self.ll = self.cpu.read(self.cpu.pc)
         self.cpu.pc += 1
-        hh = self.cpu.read(self.cpu.pc)
+        self.hh = self.cpu.read(self.cpu.pc)
         self.cpu.pc += 1
-        self.abs_address = (hh << 8) | ll
+        self.abs_address = (self.hh << 8) | self.ll
         return self.abs_address
 
+    def get_bytes(self):
+        return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
+
     def __repr__(self):
-        return "${}".format(hex(self.abs_address))
+        return "${} = ".format(to_str_hex(self.abs_address, 4))
 
 
 class AddressModeAbsoluteXIndexed:
@@ -2136,6 +2431,7 @@ class AddressModeAbsoluteXIndexed:
         self.cycles = cycles
         self.cycles_o = cycles
         self.extra_cycle = extra_cycle
+        self.size = 3
 
     def abs_address(self):
         return self.abs_address
@@ -2158,6 +2454,9 @@ class AddressModeAbsoluteXIndexed:
             self.cycles += 1
         return addr
 
+    def get_bytes(self):
+        return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
+
     def __repr__(self):
         return "{}{},X".format(hex(self.hh), hex(self.ll))
 
@@ -2171,6 +2470,7 @@ class AddressModeAbsoluteYIndexed:
         self.cycles = cycles
         self.cycles_o = cycles
         self.extra_cycles = extra_cycles
+        self.size = 3
 
     def fetch(self):
         return self.cpu.read(self.get_address())
@@ -2190,6 +2490,9 @@ class AddressModeAbsoluteYIndexed:
             self.cycles += 1
         return addr
 
+    def get_bytes(self):
+        return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
+
     def __repr__(self):
         return "{}{},Y".format(hex(self.hh), hex(self.ll))
 
@@ -2200,6 +2503,7 @@ class AddressModeImmediate:
         self.cpu = cpu
         self.addr = 0
         self.cycles = 2
+        self.size = 2
 
     def fetch(self):
         # data is stored just after instruction
@@ -2214,14 +2518,18 @@ class AddressModeImmediate:
         self.cpu.pc += 1
         return self.addr
 
+    def get_bytes(self):
+        return "${}".format(to_str_hex(self.cpu.read(self.addr))).ljust(8, " ")
+
     def __repr__(self):
-        return "# ${}".format(hex(self.cpu.read(self.addr)))
+        return "#$"
 
 
 class AddressModeImplied:
 
     def __init__(self, cycles=2):
         self.cycles = cycles
+        self.size = 1
 
     def fetch(self):
         pass
@@ -2239,24 +2547,30 @@ class AddressModeIndirect:
         self.cpu = cpu
         self.cycles = cycles
         self.ptr = 0x0000
+        self.ll = 0x00
+        self.hh = 0x00
+        self.size = 3
 
     def fetch(self):
         return self.cpu.read(self.get_address())
 
     def get_address(self):
-        ll = self.cpu.read(self.cpu.pc)
+        self.ll = self.cpu.read(self.cpu.pc)
         self.cpu.pc += 1
-        hh = self.cpu.read(self.cpu.pc)
+        self.hh = self.cpu.read(self.cpu.pc)
         self.cpu.pc += 1
 
-        self.ptr = (hh << 8) | ll
+        self.ptr = (self.hh << 8) | self.ll
 
-        if ll == 0xFF:  # emulate bug
+        if self.ll == 0xFF:  # emulate bug
             addr = (self.cpu.read(self.ptr & 0xFF00) << 8) | self.cpu.read(self.ptr + 0);
         else:  # Behave normally
             addr = (self.cpu.read(self.ptr+1) << 8) | self.cpu.read(self.ptr)
 
         return addr
+
+    def get_bytes(self):
+        return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
 
     def __repr__(self):
         return "({})".format(hex(self.ptr))
@@ -2269,6 +2583,7 @@ class AddressModeIndirectX:
         self.addr = 0x00
         self.ll = 0x00
         self.cycles = cycles
+        self.size = 2
 
     def fetch(self):
         return self.cpu.read(self.get_address())
@@ -2296,6 +2611,7 @@ class AddressModeIndirectY:
         self.cycles = cycles
         self.cycles_o = cycles
         self.extra_cycles = extra_cycles
+        self.size = 2
 
     def get_address(self):
         self.cycles = self.cycles_o
@@ -2314,6 +2630,9 @@ class AddressModeIndirectY:
 
         return self.addr
 
+    def get_bytes(self):
+        return "${} ".format(to_str_hex(self.ll))
+
     def __repr__(self):
         return "({}), Y".format(hex(self.ll))
 
@@ -2324,6 +2643,8 @@ class AddressModeRelative:
         self.cpu = cpu
         self.addr = 0x0000
         self.cycles = 2
+        self.data = 0x00
+        self.size = 2
 
     #def fetch(self):
     #    self.addr = self.cpu.read(self.cpu.pc)
@@ -2337,7 +2658,8 @@ class AddressModeRelative:
 
     def get_address(self):
         self.cycles = 2
-        self.addr = self.cpu.read(self.cpu.pc)
+        self.data = self.cpu.read(self.cpu.pc)
+        self.addr = self.data
         if self.addr & 0x80:
             # negative number, which we must extend to 16bit value
             self.addr = ~ self.addr & 0xff
@@ -2361,8 +2683,11 @@ class AddressModeRelative:
 
             return self.addr
 
+    def get_bytes(self):
+        return "${} ".format(to_str_hex(self.data))
+
     def __repr__(self):
-        return "${}".format(hex(self.addr))
+        return "${} = ".format(to_str_hex(self.addr, 4))
 
 
 class AddressModeZeroPage:
@@ -2371,6 +2696,7 @@ class AddressModeZeroPage:
         self.cpu = cpu
         self.address = 0x0000
         self.cycles = cycles
+        self.size = 2
         #self.operand = 0x00
 
     def fetch(self):
@@ -2391,6 +2717,9 @@ class AddressModeZeroPage:
         address = self.get_address()
         self.cpu.write(address, value)
 
+    def get_bytes(self):
+        return "${} ".format(to_str_hex(self.address))
+
     def __repr__(self):
         return "${}".format(hex(self.address))
 
@@ -2402,6 +2731,7 @@ class AddressModeZeroPageXIndexed:
         self.abs_address = 0x0000
         self.ll = 0
         self.cycles = cycles
+        self.size = 2
 
     def fetch(self):
         return self.cpu.read(self.get_address())
@@ -2426,6 +2756,7 @@ class AddressModeZeroPageYIndexed:
         self.cpu = cpu
         self.ll = 0
         self.cycles = 4
+        self.size = 2
 
     def fetch(self):
         return self.cpu.read(self.get_address())
@@ -2454,6 +2785,10 @@ def signed_int_to_hex(v):
         return (~ v + 1) & 0xff
     else:
         return v
+
+
+def to_str_hex(val, num_fields=2):
+        return hex(val)[2:].zfill(num_fields)
 
 
 if __name__ == "__main__":
