@@ -36,14 +36,14 @@ class Nes:
             if self.num_of_cycles % 3 == 0:
                 self.c.clock()
 
-            if self.ppu.raise_nmi:
+            if self.ppu.raise_nmi and self.c.new_instruction:
                 print("NMI request cyc:{}".format(self.c.clock_ticks))
+                self.c.nmi()
                 fh = open("log.txt", "a")
                 fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
                 fh.close()
-
-                self.c.nmi()
                 self.ppu.raise_nmi = False
+                self.ppu.cycle += 21
 
             self.num_of_cycles += 1
 
