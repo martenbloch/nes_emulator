@@ -132,6 +132,9 @@ class Ppu:
 
         self.frame_cnt = 1
 
+        self.pallete_idx = 0x0
+
+
     def read_video_mem(self, address):
         if address >= 0x2000 and address <= 0x3eff:
             index = address & 0x3ff
@@ -154,8 +157,19 @@ class Ppu:
                 elif address >= 0x2c00 and address <= 0x2fff:
                     return self.name_table_1[index]
         elif address >= 0x3f00 and address <= 0x3fff:
-            index = address & 0x3ff
-            return self.palette_ram[address & 0xff]
+            addr = address
+            addr &= 0x001F
+            if addr == 0x0010:
+                addr = 0x0000
+            if addr == 0x0014:
+                addr = 0x0004
+            if addr == 0x0018:
+                addr = 0x0008
+            if addr == 0x001C:
+                addr = 0x000C
+
+            index = addr & 0x3ff
+            return self.palette_ram[addr & 0xff]
         elif address >= 0 and address <= 0x1fff:
             return self.cardridge.chr[self.vram_addr]
         else:
@@ -164,6 +178,27 @@ class Ppu:
 
     def write_video_mem(self, address, data):
         pass
+
+    def get_palette_idx(self):
+        attr_data = self.read_video_mem(
+            self.cur_addr.base_name_table | 0x3c0 | (self.cur_addr.tile_x >> 2) | (
+                    (self.cur_addr.tile_y >> 2) << 3))
+
+        """
+        if self.cur_addr.tile_y % 4 > 1:
+            attr_data = attr_data >> 4
+        if self.cur_addr.tile_x % 4 > 1:
+            attr_data = attr_data >> 2
+
+        self.pallete_idx = attr_data & 0x03
+        """
+
+        if self.cur_addr.tile_y & 0x02:
+            attr_data = attr_data >> 4
+        if self.cur_addr.tile_x & 0x02:
+            attr_data = attr_data >> 2
+        attr_data = attr_data & 0x03
+        self.pallete_idx = attr_data
 
     def clock2(self):
 
@@ -184,6 +219,7 @@ class Ppu:
         if self.scanline == -1 and self.cycle == 322 and self.render_background:
             # load id's of 2 first tiles
             first_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+            self.get_palette_idx()
             self.cur_addr.increment_tile_x()
             second_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
             self.cur_addr.increment_tile_x()
@@ -223,8 +259,30 @@ class Ppu:
                     #    self.debug_tile += hex(self.cur_addr.get_vram_address()) + "  " + hex(self.next_tile_id) + "  | "
 
                 if self.cycle % 8 == 4:
-                    #print("cycle:{}, get attribute byte".format(self.cycle))
-                    pass
+
+                    #attr_data = self.read_video_mem(self.cur_addr.base_name_table + 0x9c0 + (self.cur_addr.tile_x//4) + (8 * (self.cur_addr.tile_y//4)))
+                    addr = self.cur_addr.base_name_table | 0x3c0 | (self.cur_addr.tile_x >> 2) | (
+                                    (self.cur_addr.tile_y >> 2) << 3)
+
+                    attr_data = self.read_video_mem(addr)
+
+                    print("base:{}  addr:{}  x:{}  y:{}".format(hex(self.cur_addr.base_name_table), hex(addr), self.cur_addr.tile_x, self.cur_addr.tile_y))
+
+                    """
+                    if self.cur_addr.tile_y % 4 > 1:
+                        attr_data = attr_data >> 4
+                    if self.cur_addr.tile_x % 4 > 1:
+                        attr_data = attr_data >> 2
+
+                    self.pallete_idx = attr_data & 0x03
+                    """
+
+                    if self.cur_addr.tile_y & 0x02:
+                        attr_data = attr_data >> 4
+                    if self.cur_addr.tile_x & 0x02:
+                        attr_data = attr_data >> 2
+                    attr_data = attr_data & 0x03
+                    self.pallete_idx = attr_data
 
                 if self.cycle % 8 == 6:
                     #print("cycle:{}, get tile low byte".format(self.cycle))
@@ -251,6 +309,9 @@ class Ppu:
                     b1 = self.shiftRegister1.shift()
                     b2 = self.shiftRegister2.shift()
                     color = b1 | (b2 << 1)
+
+                    idx = (self.read_video_mem(0x3F00 + (self.pallete_idx << 2) + color)) & 0x3f
+                    """
                     p = self.palette[0x00]
                     if color == 1:
                         p = self.palette[0x16]
@@ -258,6 +319,8 @@ class Ppu:
                         p = self.palette[0x26]
                     elif color == 3:
                         p = self.palette[0x31]
+                    """
+                    p = self.palette[idx]
 
                 self.frame.set_pixel(self.cycle - 1, self.scanline, p)
 
