@@ -396,9 +396,9 @@ class Cpu:
 
             #if self.clock_ticks < 100:
             #print(log_msg.upper())
-            fh = open("log.txt", "a")
-            fh.write(log_msg)
-            fh.close()
+            #fh = open("log.txt", "a")
+            #fh.write(log_msg)
+            #fh.close()
 
                 #print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
@@ -450,7 +450,7 @@ class Cpu:
         self.sr.from_byte(0x85)
 
     def nmi(self):
-        print("CPU: NMI request")
+        #print("CPU: NMI request")
         self.push((self.pc & 0xFF00) >> 8)
         self.push(self.pc & 0xFF)
         self.push(self.sr.to_byte())
@@ -537,7 +537,7 @@ class Cardrige:
         self.prg[self.mapper.map_cpu_address(address)] = data
 
     def is_address_valid(self, address):
-        if self.start_addr <= address < self.end_addr:
+        if self.start_addr <= address <= self.end_addr:
             return True
         return False
 
@@ -566,17 +566,58 @@ class Apu:
         self.start_addr = 0x4000
         self.end_addr = 0x4017
         self.data = [0 for i in range(self.end_addr - self.start_addr + 1)]
+        self.read_button = False
+        self.cnt = 0
+        self.f = False
+        self.btn_down = False
+        self.btn_up = False
+        self.btn_start = False
 
     def read(self, address):
+        if address == 0x4016:
+            d = self.data[address - self.start_addr]
+            if self.read_button:
+                if self.cnt == 5:
+                    if self.btn_down:
+                        d = 0x01
+                        self.btn_down = False
+                if self.cnt == 4:
+                    if self.btn_up:
+                        d = 0x01
+                        self.btn_up = False
+                if self.cnt == 3:
+                    if self.btn_start:
+                        d = 0x01
+                        self.btn_start = False
+                self.cnt += 1
+            print("read: {}".format(hex(d)))
+            return d
+
         return self.data[address - self.start_addr]
 
     def write(self, address, data):
+        if address == 0x4016:
+            self.cnt = 0
+            if data & 0x1 == 0:
+                self.read_button = True
+            else:
+                self.read_button = False
+            print("write: {}".format(hex(data)))
         self.data[address - self.start_addr] = data
 
     def is_address_valid(self, address):
         if self.start_addr <= address <= self.end_addr:
             return True
         return False
+
+    def pressed_down(self):
+        self.btn_down = True
+
+    def pressed_up(self):
+        self.btn_up = True
+
+    def pressed_start(self):
+        self.btn_start = True
 
 
 class StatusRegister:

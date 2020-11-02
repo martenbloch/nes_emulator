@@ -203,10 +203,11 @@ class Ppu:
     def clock2(self):
 
         if self.scanline == -1 and self.cycle == 0:
-            print("scanline -1")
+            #print("scanline -1")
+            pass
 
         if self.scanline == -1 and self.cycle == 1:
-            print("PPU: ----------------------> CLEAR v blank")
+            #print("PPU: ----------------------> CLEAR v blank")
             self.vblank = 0
             self.status = self.status & (0 << 7)
 
@@ -243,11 +244,11 @@ class Ppu:
 
         # visible scanline section
         if self.scanline >= 0 and self.scanline <= 239 and self.render_background == True:
-            if self.scanline == 0 and self.cycle == 0:
-                print("******** visible scanline start! ***********  addr:{}".format(hex(self.cur_addr.get_vram_address())))
+            #if self.scanline == 0 and self.cycle == 0:
+                #print("******** visible scanline start! ***********  addr:{}".format(hex(self.cur_addr.get_vram_address())))
 
-            if self.scanline == 239 and self.cycle == 0:
-                print("******** visible scanline end! ***********  addr:{}".format(hex(self.cur_addr.get_vram_address())))
+            #if self.scanline == 239 and self.cycle == 0:
+                #print("******** visible scanline end! ***********  addr:{}".format(hex(self.cur_addr.get_vram_address())))
 
             if self.cycle >= 1 and self.cycle <= 256 or (self.cycle >=321 and self.cycle <= 340):   # screen width - 256px
 
@@ -266,7 +267,7 @@ class Ppu:
 
                     attr_data = self.read_video_mem(addr)
 
-                    print("base:{}  addr:{}  x:{}  y:{}".format(hex(self.cur_addr.base_name_table), hex(addr), self.cur_addr.tile_x, self.cur_addr.tile_y))
+                    #print("base:{}  addr:{}  x:{}  y:{}".format(hex(self.cur_addr.base_name_table), hex(addr), self.cur_addr.tile_x, self.cur_addr.tile_y))
 
                     """
                     if self.cur_addr.tile_y % 4 > 1:
@@ -336,7 +337,7 @@ class Ppu:
             self.frame_cnt += 1
 
         if self.scanline == 241 and self.cycle == 1:
-            print("PPU: ----------------------> SET v blank")
+            #print("PPU: ----------------------> SET v blank")
             #if self.enable_bg_render:
                 #print("Execute enabling rendering")
                 #self.render_background = True
@@ -359,7 +360,7 @@ class Ppu:
                     self.is_odd = False
                 else:
                     self.is_odd = True
-                print
+                #print
                 self.screen.update(self.frame)
 
 
@@ -370,8 +371,8 @@ class Ppu:
         self.clock2()
         return
 
-        if self.scanline == -1 and self.cycle == 0:
-            print("Start new frame")
+        #if self.scanline == -1 and self.cycle == 0:
+            #print("Start new frame")
 
         if self.scanline == -1:
             if self.render_background:
@@ -433,7 +434,7 @@ class Ppu:
                 self.shiftRegister2.write(v)
 
         if self.scanline == 241 and self.cycle == 1:
-            print("PPU: ----------------------> SET v blank")
+            #print("PPU: ----------------------> SET v blank")
             self.vblank = 1
             self.status = self.status | (1 << 7)
             if self.enable_nmi:
@@ -442,7 +443,7 @@ class Ppu:
         if self.scanline == 260 and self.cycle == 304:
             self.vblank = 0
             self.status = self.status & (0 << 7)
-            print("PPU: ----------------------> Clear v blank")
+            #print("PPU: ----------------------> Clear v blank")
 
         self.cycle += 1
 
@@ -483,13 +484,13 @@ class Ppu:
             val = self.last_written_data & 0x1f | self.status & 0xe0
             #val = self.read_buffer & 0x1f | self.status & 0xe0
             #val = self.status
-            print("PPU STATUS read 0x2002 val:{}".format(hex(val)))
+            #print("PPU STATUS read 0x2002 val:{}".format(hex(val)))
             self.status = self.status & (0 << 7)    # read clears vertical blank
             self.ppu_addr_flag = 0
             self.address_latch = 0
             return val
         elif address == 0x2007:
-            print("PPU read address:{}".format(hex(self.vram_addr)))
+            #print("PPU read address:{}".format(hex(self.vram_addr)))
             val = 0
             if self.vram_addr >= 0x2000 and self.vram_addr <= 0x3eff:
                 index = self.vram_addr & 0x3ff
@@ -562,39 +563,39 @@ class Ppu:
     def write(self, address, data):
         if address == 0x2000:
             self.last_written_data = data
-            print("PPUCTRL write:{}".format(hex(data)))
+            #print("PPUCTRL write:{}".format(hex(data)))
 
             #self.cur_addr.set_name_table(data & 0x3)
             self.tmp_addr.set_base_name_table(data & 0x3)
 
             if data & 0x80:
-                print("PPU: NMI enabled")
+                #print("PPU: NMI enabled")
                 self.enable_nmi = True
             else:
                 self.enable_nmi = False
 
             if data & 0x04:
                 self.nametable_inc = 1
-                print("VRAM INC by 32")
+                #print("VRAM INC by 32")
             else:
                 self.nametable_inc = 0
-                print("VRAM INC by 1")
+                #print("VRAM INC by 1")
 
             if data & 0x10:
-                print(" Background pattern table 0x1000")
+                #print(" Background pattern table 0x1000")
                 self.background_half = 1
             else:
                 self.background_half = 0
-                print(" Background pattern table 0x0000")
+                #print(" Background pattern table 0x0000")
 
             return
         elif address == 0x2001:
             self.last_written_data = data
-            print("PPUMASK write:{}".format(hex(data)))
+            #print("PPUMASK write:{}".format(hex(data)))
 
             if data & 0x8:
                 #self.render_background = True
-                print("Schedule Enable background rendering!")
+                #print("Schedule Enable background rendering!")
                 #self.enable_bg_render = True
                 self.render_background = True
             else:
@@ -605,11 +606,11 @@ class Ppu:
             return
         elif address == 0x2003:
             self.last_written_data = data
-            print("PPU OAM ADDR write:{}".format(hex(data)))
+            #print("PPU OAM ADDR write:{}".format(hex(data)))
             return
         elif address == 0x2004:
             self.last_written_data = data
-            print("PPU OAM DATA write:{}".format(hex(data)))
+            #print("PPU OAM DATA write:{}".format(hex(data)))
             return
         elif address == 0x2005:
             self.last_written_data = data
@@ -619,11 +620,11 @@ class Ppu:
             else:
                 self.address_latch = 0
                 self.tmp_addr.scroll_y(data)
-            print("PPU SCROLL write:{}".format(hex(data)))
+            #print("PPU SCROLL write:{}".format(hex(data)))
             return
         elif address == 0x2006:
             self.last_written_data = data
-            print("PPUADDR write:{}".format(hex(data)))
+            #print("PPUADDR write:{}".format(hex(data)))
             if self.address_latch == 0:
                 self.address_latch = 1
                 self.ppu_addr = 0x0000 | ((data & 0x3f) << 8)
@@ -680,7 +681,8 @@ class Ppu:
                 raise NotImplementedError("PPUWRITE for addr:{}   data:{}".format(hex(self.vram_addr), hex(data)))
 
             if data != 0:
-                print("PPUWRITE write addr:{}  data:{}".format(hex(self.vram_addr), hex(data)))
+                #print("PPUWRITE write addr:{}  data:{}".format(hex(self.vram_addr), hex(data)))
+                pass
 
             if self.nametable_inc:
                 self.vram_addr += 32

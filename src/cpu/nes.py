@@ -4,10 +4,13 @@ from src.cpu import frame
 import pygame
 
 
+
+
+
 class Nes:
     def __init__(self, screen):
-        #self.cartridge = cpu.Cardrige("tests/nestest.nes")
-        self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
+        self.cartridge = cpu.Cardrige("tests/nestest.nes")
+        #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
@@ -17,6 +20,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/palette_ram.nes")
         #self.cartridge = cpu.Cardrige("tests/vbl_clear_time.nes")
         #self.cartridge = cpu.Cardrige("tests/scanline.nes")
+        #self.cartridge = cpu.Cardrige("tests/allpads.nes")
 
         self.ppu = ppu.Ppu(screen, self.cartridge)
         self.bus = cpu.Bus()
@@ -30,6 +34,24 @@ class Nes:
         self.bus.connect(self.ppu)
         self.num_of_cycles = 1
 
+    def get_pressed_button(self):
+        for event in pygame.event.get(pygame.KEYDOWN):
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    print("key up")
+                    self.apu.pressed_up()
+                elif event.key == pygame.K_DOWN:
+                    print("key down")
+                    self.apu.pressed_down()
+                elif event.key == pygame.K_LEFT:
+                    print("key left")
+                elif event.key == pygame.K_RIGHT:
+                    print("key right")
+                elif event.key == pygame.K_RETURN:
+                    print("key Enter")
+                    self.apu.pressed_start()
+
+
     def start(self):
         while True:
             self.ppu.clock()
@@ -37,7 +59,7 @@ class Nes:
                 self.c.clock()
 
             if self.ppu.raise_nmi and self.c.new_instruction:
-                print("NMI request cyc:{}".format(self.c.clock_ticks))
+                #print("NMI request cyc:{}".format(self.c.clock_ticks))
                 self.c.nmi()
                 fh = open("log.txt", "a")
                 fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
@@ -46,6 +68,8 @@ class Nes:
                 self.ppu.cycle += 21
 
             self.num_of_cycles += 1
+
+            self.get_pressed_button()
 
     def reset(self):
         self.c.reset()
