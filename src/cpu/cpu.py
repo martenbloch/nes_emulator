@@ -403,9 +403,9 @@ class Cpu:
 
             #if self.clock_ticks < 100:
             #print(log_msg.upper())
-            #fh = open("log.txt", "a")
-            #fh.write(log_msg)
-            #fh.close()
+            fh = open("log.txt", "a")
+            fh.write(log_msg)
+            fh.close()
 
                 #print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
@@ -886,7 +886,8 @@ class Bit:
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
 
-        self.str = ("BIT " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("BIT " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("BIT " + ascii(self.addressMode) + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.sr.n = (operand >> 7) & 0x1
         self.cpu.sr.v = (operand >> 6) & 0x1
@@ -908,9 +909,11 @@ class Bmi:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
+        self.str = ("BMI " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
         if self.cpu.sr.n == 1:
             self.cpu.pc = addr
             return self.addressMode.cycles
@@ -920,7 +923,8 @@ class Bmi:
         return self.addressMode.size
 
     def __repr__(self):
-        return "BMI {}".format(ascii(self.addressMode))
+        return self.str
+        #return "BMI {}".format(ascii(self.addressMode))
 
 
 class Bne:
@@ -934,8 +938,7 @@ class Bne:
         addr = self.addressMode.get_address()
 
         #self.str = ("BNE " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr)) ).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("BNE " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH,
-                                                                                                            " ")
+        self.str = ("BNE " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.sr.z == 0:
             self.cpu.pc = addr
@@ -1115,7 +1118,7 @@ class Clv:
         return self.addressMode.size
 
     def __repr__(self):
-        return "CLV {}".format(ascii(self.addressMode))
+        return "CLV".ljust(LOG_WIDTH, " ")
 
 
 class Cmp:
@@ -2009,8 +2012,6 @@ class Rra:
         #self.cpu.sr.c = operand & 0x0001
         #tmp = operand >> 1
         old_c = self.cpu.sr.c
-        print("old_c {}".format(old_c))
-        print("new_c {}".format(operand & 0x01))
 
         #self.cpu.sr.c = operand & 0x01
         tmp = (operand >> 1) | (old_c << 7)
@@ -2074,7 +2075,13 @@ class Rti:
         self.addressMode = address_mode
 
     def execute(self):
-        self.cpu.sr.from_byte(self.cpu.pop())
+        val = self.cpu.pop()
+        if val & 0x10 == 0x10:
+            val = val & 0xef
+        else:
+            val = val | (1 << 5)
+
+        self.cpu.sr.from_byte(val)
         ll = self.cpu.pop()
         hh = self.cpu.pop()
         self.cpu.pc = (hh << 8) | ll
@@ -2084,7 +2091,7 @@ class Rti:
         return self.addressMode.size
 
     def __repr__(self):
-        return "RTI {}".format(ascii(self.addressMode))
+        return "RTI".ljust(LOG_WIDTH, " ")
 
 
 class Rts:
@@ -2333,9 +2340,11 @@ class Sta:
 
         if addr >= 0x2000 and addr <= 0x2007: #fixit
             ppu = self.cpu.bus.get_device_by_address(0x2000)
-            self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
+            #self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
+            self.str = ("STA " + ascii(self.addressMode) + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
         else:
-            self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
+            #self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
+            self.str = ("STA " + ascii(self.addressMode) + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.write(addr, self.cpu.a)
         return self.addressMode.cycles
@@ -2357,7 +2366,7 @@ class Stx:
     def execute(self):
         abs_addr = self.addressMode.get_address()
 
-        self.str = ("STX " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(abs_addr))).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("STX " + ascii(self.addressMode) + to_str_hex(self.cpu.read(abs_addr))).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.write(abs_addr, self.cpu.x)
         return self.addressMode.cycles
@@ -2901,7 +2910,8 @@ class AddressModeZeroPage:
     #    return "${} ".format(to_str_hex(self.address))
 
     def __repr__(self):
-        return "${} = ".format(to_str_hex(self.address, 4))
+        #return "${} = ".format(to_str_hex(self.address, 4))
+        return "${} = ".format(to_str_hex(self.address, 2))
         #return "${}".format(to_str_hex(self.address, 4))
 
 
