@@ -20,11 +20,19 @@ def test_cpu():
 
     c.enable_print = True
     #c.reset()
+    p.cycle = 18
+    c.sr.from_byte(0x24)
+    i=0
+    num_of_cycles = 1
     while True:
-        if c.pc == 0xC66E:
-            break
-        if c.clock_ticks == 13893:
-            x=3
-        c.clock()
+        p.clock()
+        if num_of_cycles % 3 == 0:
+            c.clock()
+
+        #if i == 500:
+        #    break
+        i+=1
+        num_of_cycles += 1
+
 
 

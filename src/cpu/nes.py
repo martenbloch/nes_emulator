@@ -38,19 +38,17 @@ class Nes:
         for event in pygame.event.get(pygame.KEYDOWN):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
-                    print("key up")
                     self.apu.pressed_up()
                 elif event.key == pygame.K_DOWN:
-                    print("key down")
                     self.apu.pressed_down()
                 elif event.key == pygame.K_LEFT:
                     print("key left")
                 elif event.key == pygame.K_RIGHT:
                     print("key right")
                 elif event.key == pygame.K_RETURN:
-                    print("key Enter")
                     self.apu.pressed_start()
-
+                elif event.key == pygame.K_1:
+                    self.apu.select_pressed()
 
     def start(self):
         while True:
