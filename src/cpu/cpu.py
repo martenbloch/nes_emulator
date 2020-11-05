@@ -401,9 +401,9 @@ class Cpu:
 
             #if self.clock_ticks < 100:
             #print(log_msg.upper())
-            #fh = open("log.txt", "a")
-            #fh.write(log_msg)
-            #fh.close()
+            fh = open("log.txt", "a")
+            fh.write(log_msg)
+            fh.close()
 
                 #print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
@@ -444,7 +444,7 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x91
+        self.a = 0x90
         self.x = 0x05
         self.y = 0x0
         self.sp = 0xFC    # end of stack
@@ -2088,6 +2088,11 @@ class Rti:
             val = val & 0xef
         else:
             val = val | (1 << 5)
+
+        if val & 0x20 == 0x20:
+            val = val & 0xdf
+        else:
+            val = val | (1 << 6)
 
         self.cpu.sr.from_byte(val)
         ll = self.cpu.pop()
