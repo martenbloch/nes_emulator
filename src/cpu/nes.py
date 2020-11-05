@@ -9,8 +9,8 @@ import pygame
 
 class Nes:
     def __init__(self, screen):
-        self.cartridge = cpu.Cardrige("tests/nestest.nes")
-        #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
+        #self.cartridge = cpu.Cardrige("tests/nestest.nes")
+        self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
@@ -21,6 +21,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/vbl_clear_time.nes")
         #self.cartridge = cpu.Cardrige("tests/scanline.nes")
         #self.cartridge = cpu.Cardrige("tests/allpads.nes")
+        #self.cartridge = cpu.Cardrige("tests/read_joy3/test_buttons.nes")
 
         self.ppu = ppu.Ppu(screen, self.cartridge)
         self.bus = cpu.Bus()

@@ -27,7 +27,7 @@ class Bus:
     def connect(self, device):
         self.__devices.append(device)
 
-LOG_WIDTH = 32
+LOG_WIDTH = 38
 
 class Cpu:
 
@@ -371,30 +371,28 @@ class Cpu:
     def inst_as_bytes(self, instruction_size):
         s = ""
         for i in range(instruction_size):
-            #s += "${} ".format(self.to_hex(self.read(self.pc + i)))
-            s += "{} ".format(self.to_hex(self.read(self.pc + i))) # nesdev tests
-        #return s.upper().ljust(12, " ")
-        return s.upper().ljust(10, " ") # NESDEV
+            s += "${} ".format(self.to_hex(self.read(self.pc + i)))
+            #s += "{} ".format(self.to_hex(self.read(self.pc + i))) # nesdev tests
+        return s.upper().ljust(12, " ")
+        #return s.upper().ljust(10, " ") # NESDEV
 
     def clock(self):
         if self.cycles_left_to_perform_current_instruction == 0:
             self.new_instruction = True
             log_msg = ""
             cpu_state_before = ""
-            if self.pc == 0x9c0d:
-                j=3
 
             instruction = self.read(self.pc)
-            #log_msg += "{} ".format(self.to_hex(self.pc, 4)).upper()
-            log_msg += "{}  ".format(self.to_hex(self.pc, 4)).upper() # nesdev
+            log_msg += "{} ".format(self.to_hex(self.pc, 4)).upper()
+            #log_msg += "{}  ".format(self.to_hex(self.pc, 4)).upper() # nesdev
             log_msg += self.inst_as_bytes(self.instructions[instruction].size())
             cpu_state_before = self.to_str().upper()
             ppu = self.bus.get_device_by_address(0x2000)
             #cpu_state_before += "CYC:{} SL:{} FC:{} CPU Cycle:{}\r\n".format(str(ppu.cycle).ljust(3, ' '), str(ppu.scanline).ljust(3, ' '), ppu.frame_cnt, self.clock_ticks)
-            cpu_state_before += " PPU:{},{} CYC:{}\n".format(str(ppu.scanline).rjust(3, ' '),
-                                                                             str(ppu.cycle).rjust(3, ' '),
-                                                                             self.clock_ticks)
-            #cpu_state_before += "\r\n"
+            #cpu_state_before += " PPU:{},{} CYC:{}\n".format(str(ppu.scanline).rjust(3, ' '),
+            #                                                                 str(ppu.cycle).rjust(3, ' '),
+            #                                                                 self.clock_ticks)
+            cpu_state_before += "\r\n"
             self.pc += 1
 
             self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
@@ -403,9 +401,9 @@ class Cpu:
 
             #if self.clock_ticks < 100:
             #print(log_msg.upper())
-            fh = open("log.txt", "a")
-            fh.write(log_msg)
-            fh.close()
+            #fh = open("log.txt", "a")
+            #fh.write(log_msg)
+            #fh.close()
 
                 #print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
@@ -447,8 +445,8 @@ class Cpu:
         self.pc = (hh << 8) | ll
 
         self.a = 0x91
-        self.x = 0
-        self.y = 0x05
+        self.x = 0x05
+        self.y = 0x0
         self.sp = 0xFC    # end of stack
 
         self.sr = StatusRegister()
@@ -522,6 +520,8 @@ class Cardrige:
         self.mapper = None
         if mapperId == 0:
             self.mapper = Mapper000(prg_size)
+        else:
+            raise NotImplementedError("unknown mapper id:{}".format(mapperId))
 
         #self.data = [0 for i in range(self.end_addr - self.start_addr)]
         #self.data[0xc000 - self.start_addr: len(prog_data)] = prog_data
@@ -582,42 +582,50 @@ class Apu:
     def read(self, address):
         if address == 0x4016:
             d = self.data[address - self.start_addr]
+            d = 0x40
             if self.read_button:
                 if self.cnt == 5:
                     if self.btn_down:
-                        d = 0x01
+                        d = 0x41
                         self.btn_down = False
+                        print("DOWN")
                 if self.cnt == 4:
                     if self.btn_up:
-                        d = 0x03
+                        d = 0x43
                         self.btn_up = False
+                        print("UP")
                 if self.cnt == 3:
                     if self.btn_start:
-                        d = 0x01
+                        d = 0x41
                         self.btn_start = False
+                        print("START")
                 if self.cnt == 2:
                     if self.btn_select:
-                        d = 0x01
+                        d = 0x41
                         self.btn_select = False
-                print("read: {} cnt:{}".format(hex(d), self.cnt))
+                        print("SELECT")
+                if self.cnt > 7:
+                    d = 0x40
+                #print("read: {} cnt:{}".format(hex(d), self.cnt))
                 self.cnt += 1
                 #if self.cnt == 16:
                 #    self.btn_down = False
                 #    self.btn_up = False
                 #    self.btn_start = False
                 #    self.btn_select = False
-
-
             return d
+        elif address == 0x4017:
+            #print("0x4017 return 0x40")
+            return 0x40
 
         return self.data[address - self.start_addr]
 
     def write(self, address, data):
         if address == 0x4016:
-            print("write: {}".format(hex(data)))
+            #print("write: {}".format(hex(data)))
             self.cnt = 0
             if data & 0x1 == 0:
-                print("------- READ BUTTON--------")
+                #print("------- READ BUTTON--------")
                 self.read_button = True
             else:
                 self.read_button = False
@@ -833,8 +841,8 @@ class Bcs:
     def execute(self):
         addr = self.addressMode.get_address()
 
-        #self.str = ("BCS " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr), 2)).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("BCS " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("BCS " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr), 2)).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("BCS " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.sr.c == 1:
             self.cpu.pc = addr
@@ -859,8 +867,8 @@ class Beq:
     def execute(self):
         addr = self.addressMode.get_address()
 
-        #self.str = ("BEQ " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr), 2)).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("BEQ " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("BEQ " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr), 2)).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("BEQ " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.sr.z == 1:
             self.cpu.pc = addr
@@ -886,8 +894,8 @@ class Bit:
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
 
-        #self.str = ("BIT " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("BIT " + ascii(self.addressMode) + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("BIT " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("BIT " + ascii(self.addressMode) + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.sr.n = (operand >> 7) & 0x1
         self.cpu.sr.v = (operand >> 6) & 0x1
@@ -937,8 +945,8 @@ class Bne:
     def execute(self):
         addr = self.addressMode.get_address()
 
-        #self.str = ("BNE " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr)) ).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("BNE " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("BNE " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr)) ).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("BNE " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.sr.z == 0:
             self.cpu.pc = addr
@@ -962,8 +970,8 @@ class Bpl:
 
     def execute(self):
         addr = self.addressMode.get_address()
-        #self.str = ("BPL " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("BPL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ") #NESDEV
+        self.str = ("BPL " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("BPL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ") #NESDEV
         if self.cpu.sr.n == 0:
             self.cpu.pc = addr
             return self.addressMode.cycles
@@ -1554,8 +1562,8 @@ class Jmp:
         #self.addressMode.fetch()
         self.cpu.pc = self.addressMode.get_address()
 
-        #self.str = ("JMP " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(self.cpu.pc))).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("JMP " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("JMP " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(self.cpu.pc))).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("JMP " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
         #self.cpu.pc = (self.cpu.read(self.cpu.pc + 2) << 8) | self.cpu.read(self.cpu.pc + 1)
         return self.addressMode.cycles
 
@@ -1577,9 +1585,8 @@ class Jsr:
     def execute(self):
         addr = self.addressMode.get_address()
 
-        #self.str = ("JSR " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("JSR " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH,
-                                                                                                            " ")
+        self.str = ("JSR " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("JSR " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.push(((self.cpu.pc-1) & 0xFF00) >> 8)  # -1 because address mode will move pc to the next instruction
         self.cpu.push((self.cpu.pc-1) & 0xFF)
@@ -1632,6 +1639,7 @@ class Lda:
 
     def execute(self):
         address = self.addressMode.get_address()
+
         operand = self.cpu.read(address)
         self.data = operand
         self.cpu.a = operand
@@ -2340,11 +2348,15 @@ class Sta:
 
         if addr >= 0x2000 and addr <= 0x2007: #fixit
             ppu = self.cpu.bus.get_device_by_address(0x2000)
-            #self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
-            self.str = ("STA " + ascii(self.addressMode) + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
+            self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
+            #self.str = ("STA " + ascii(self.addressMode) + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
         else:
             #self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-            self.str = ("STA " + ascii(self.addressMode) + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
+            if addr == 0x4016 or addr == 0x4017:
+                self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(0x00)).upper().ljust(LOG_WIDTH, " ")
+            else:
+                self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
+            #self.str = ("STA " + ascii(self.addressMode) + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.write(addr, self.cpu.a)
         return self.addressMode.cycles
@@ -2602,8 +2614,8 @@ class AddressModeAbsolute:
     #    return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
 
     def __repr__(self):
-        #return "${} = ".format(to_str_hex(self.abs_address, 4))
-        return "${}".format(to_str_hex(self.abs_address, 4)) # NESDEV
+        return "${} = ".format(to_str_hex(self.abs_address, 4))
+        #return "${}".format(to_str_hex(self.abs_address, 4)) # NESDEV
 
 class AddressModeAbsoluteXIndexed:
 
@@ -2632,7 +2644,7 @@ class AddressModeAbsoluteXIndexed:
 
         addr = ((self.hh << 8) | self.ll) + self.cpu.x
         addr = addr & 0xffff
-        self.cpu.operand = self.cpu.read(addr)
+        #self.cpu.operand = self.cpu.read(addr)
 
         if (addr & 0xFF00) != (self.hh << 8) and self.extra_cycle:
             self.cycles += 1
@@ -2876,8 +2888,8 @@ class AddressModeRelative:
         return "${} ".format(to_str_hex(self.data))
 
     def __repr__(self):
-        #return "${} = ".format(to_str_hex(self.addr, 4))
-        return "${}".format(to_str_hex(self.addr, 4)) #NESDEV
+        return "${} = ".format(to_str_hex(self.addr, 4))
+        #return "${}".format(to_str_hex(self.addr, 4)) #NESDEV
 
 class AddressModeZeroPage:
 
@@ -2910,8 +2922,8 @@ class AddressModeZeroPage:
     #    return "${} ".format(to_str_hex(self.address))
 
     def __repr__(self):
-        #return "${} = ".format(to_str_hex(self.address, 4))
-        return "${} = ".format(to_str_hex(self.address, 2))
+        return "${} = ".format(to_str_hex(self.address, 4))
+        #return "${} = ".format(to_str_hex(self.address, 2))
         #return "${}".format(to_str_hex(self.address, 4))
 
 
