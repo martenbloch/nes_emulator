@@ -2,8 +2,92 @@ from src.cpu import frame
 import random
 
 
+class OamData:
+    def __init__(self):
+        self.y = 0xFF
+        self.tile_num = 0xFF
+        self.attr = 0xFF
+        self.x = 0xFF
+
+    def get_prio(self):
+        return (self.attr & 0x20) >> 5
+
+    def flip_horizontally(self):
+        return self.attr & 0x40 == 0x40
+
+    def palette(self):
+        return self.attr & 0x3
+
+    def __repr__(self):
+        return "({},{}) tile:{}  prio:{}  ".format(self.x, self.y, self.tile_num, self.get_prio())
+
+
+class PpuCtrl:
+
+    def __init__(self):
+        self.base_nametable = 0x2000
+        self.vram_inc = 1
+        self.sprite_address = 0x0000
+        self.bg_address = 0x0000
+        self.sprite_size = 0    # 0 - 8x8, 1 - 8x16
+        self.generate_nmi = False
+
+    def from_byte(self, data):
+
+        val = data & 0x3
+        if val == 0:
+            self.base_nametable = 0x2000
+        elif val == 1:
+            self.base_nametable = 0x2400
+        elif val == 2:
+            self.base_nametable = 0x2800
+        else:
+            self.base_nametable = 0x2C00
+
+        if data & 0x4 == 0:
+            self.vram_inc = 1
+        else:
+            self.vram_inc = 32
+
+        if data & 0x8 == 0:
+            self.sprite_address = 0x0000
+        else:
+            self.sprite_address = 0x1000
+
+        if data & 0x10 == 0:
+            self.bg_address = 0x0000
+        else:
+            self.bg_address = 0x1000
+
+        if data & 0x20 == 0:
+            self.sprite_size = 0
+        else:
+            self.sprite_size = 1
+            print("Sprite size 8x16")
+
+        if data & 0x80 == 0:
+            self.generate_nmi = False
+        else:
+            self.generate_nmi = True
+
+
 class Ppu:
     def __init__(self, screen, cardridge):
+
+        self.ppu_ctrl = PpuCtrl()
+
+        self.oam = [OamData() for i in range(64)]
+        self.secondary_oam = [OamData() for i in range(8)]
+        self.secondary_oam_x_counter = [0 for i in range(8)]
+        self.secondary_oam_num_pixel_to_draw = [8 for i in range(8)]
+        self.secondary_oam_attr_bytes = [8 for i in range(8)]
+        self.secondary_oam_l = [ShiftRegister(8) for i in range(8)]
+        self.secondary_oam_h = [ShiftRegister(8) for i in range(8)]
+
+        self.oam_addr = 0x00
+        self.show_sprite = False
+        self.sprite_pattern_table = 0x0000
+
         self.cycle = 0
         self.scanline = 0
         self.screen = screen
@@ -134,6 +218,68 @@ class Ppu:
 
         self.pallete_idx = 0x0
 
+        self.sprite_zero_hit = False
+
+        self.bg_pixel = 0
+
+    def clear_secondary_oam(self):
+        self.secondary_oam = [OamData() for i in range(8)]
+
+    def fill_secondary_oam(self, y):
+        cnt = 0
+        self.secondary_oam_num_pixel_to_draw = [0 for i in range(8)]
+        #msg = "scanline:{}  sprites: ".format(y)
+        for i in range(64):
+            if y >= self.oam[i].y and y < self.oam[i].y + 8:
+                self.secondary_oam[cnt] = self.oam[i]
+                self.secondary_oam_x_counter[cnt] = self.oam[i].x
+                self.secondary_oam_attr_bytes[cnt] = self.oam[i].attr
+                self.secondary_oam_num_pixel_to_draw[cnt] = 8
+                cnt += 1
+                #msg += ascii(self.oam[i])
+                if cnt == 8:
+                    break
+        #if cnt != 0:
+        #    print(msg)
+
+    def decrement_sprite_x_counters(self):
+        for i in range(8):
+            if self.secondary_oam_x_counter[i] > 0:
+                self.secondary_oam_x_counter[i] -= 1
+            if self.secondary_oam_x_counter[i] == 0:
+                if self.secondary_oam_num_pixel_to_draw[i] > 0:
+                    b1 = self.secondary_oam_l[i].shift()
+                    b2 = self.secondary_oam_h[i].shift()
+                    color = b1 | (b2 << 1)
+
+                    pallete_idx = self.secondary_oam[i].palette()
+                    idx = (self.read_video_mem(0x3F10 + (pallete_idx << 2) + color)) & 0x3f
+                    p = self.palette[idx]
+
+                    priority = (self.secondary_oam_attr_bytes[i] & 0x20) >> 5
+
+                    if priority == 0 and color != 0:
+                        self.frame.set_pixel(self.cycle - 1, self.scanline, p)
+                    self.secondary_oam_num_pixel_to_draw[i] -= 1
+
+                    if i == 0 and color != 0 and self.bg_pixel != 0:
+                        self.sprite_zero_hit = True
+
+    def fill_sprites_shift_registers(self, y):
+        row = y % 8
+        for i in range(8):
+            sprite = self.secondary_oam[i]
+            half = 0
+            if self.ppu_ctrl.sprite_address == 0x1000:
+                half = 1
+
+            low, upper = self.cardridge.get_tile_data(sprite.tile_num, row, half)
+            if sprite.flip_horizontally():
+                low = int('{:08b}'.format(low)[::-1], 2)
+                upper = int('{:08b}'.format(upper)[::-1], 2)
+
+            self.secondary_oam_l[i] = ShiftRegister(8, low)
+            self.secondary_oam_h[i] = ShiftRegister(8, upper)
 
     def read_video_mem(self, address):
         if address >= 0x2000 and address <= 0x3eff:
@@ -210,6 +356,7 @@ class Ppu:
             #print("PPU: ----------------------> CLEAR v blank")
             self.vblank = 0
             self.status = self.status & (0 << 7)
+            self.sprite_zero_hit = False
 
         if self.scanline == -1:
             if self.cycle >= 280 and self.cycle <= 304:
@@ -311,6 +458,8 @@ class Ppu:
                     b2 = self.shiftRegister2.shift()
                     color = b1 | (b2 << 1)
 
+                    self.bg_pixel = color
+
                     idx = (self.read_video_mem(0x3F00 + (self.pallete_idx << 2) + color)) & 0x3f
                     """
                     p = self.palette[0x00]
@@ -332,6 +481,20 @@ class Ppu:
             if self.cycle == 257:
                 self.cur_addr.base_name_table = self.tmp_addr.base_name_table
                 self.cur_addr.tile_x = self.tmp_addr.tile_x
+
+        # ------------------------------sprite rendering------------------------------
+        if self.scanline >= 0 and self.scanline <= 239 and self.show_sprite == True:
+            if self.cycle == 1:
+                self.clear_secondary_oam()
+            elif self.cycle == 256:
+                self.fill_secondary_oam(self.scanline)
+            elif self.cycle == 257:
+                if self.scanline == 30:
+                    j=4
+                self.fill_sprites_shift_registers(self.scanline)
+            if self.cycle >= 0 and self.cycle <= 255:
+                self.decrement_sprite_x_counters()
+
 
         if self.scanline == 240 and self.cycle == 0:
             self.frame_cnt += 1
@@ -481,6 +644,10 @@ class Ppu:
 
         if address == 0x2002:
 
+            if self.sprite_zero_hit:
+                self.status = self.status | (1 << 6)
+                #print("Zero hit in status")
+
             val = self.last_written_data & 0x1f | self.status & 0xe0
             #val = self.read_buffer & 0x1f | self.status & 0xe0
             #val = self.status
@@ -560,9 +727,27 @@ class Ppu:
         else:
             raise NotImplementedError("PPU read not implemented, address:{}".format(hex(address)))
 
+    def write_oam_data(self, address, data):
+        idx = address//4
+        param_idx = address % 4
+
+        if idx >= len(self.oam):
+            raise Exception("out of range: {}, address:{}".format(idx, hex(address)))
+
+        if param_idx == 0:
+            self.oam[idx].y = data
+        elif param_idx == 1:
+            self.oam[idx].tile_num = data
+        elif param_idx == 2:
+            self.oam[idx].attr = data
+        elif param_idx == 3:
+            self.oam[idx].x = data
+
     def write(self, address, data):
         if address == 0x2000:
             self.last_written_data = data
+
+            self.ppu_ctrl.from_byte(data)
             #print("PPUCTRL write:{}".format(hex(data)))
 
             #self.cur_addr.set_name_table(data & 0x3)
@@ -603,15 +788,23 @@ class Ppu:
                 #self.enable_bg_render = False
                 self.render_background = False
 
+            if data & 0x10:
+                self.show_sprite = True
+            else:
+                self.show_sprite = False
+
             return
         elif address == 0x2003:
             self.last_written_data = data
-            #print("PPU OAM ADDR write:{}".format(hex(data)))
-            return
+            self.oam_addr = data
+            #print("OAM addr:{}".format(hex(self.oam_addr)))
+
         elif address == 0x2004:
             self.last_written_data = data
-            #print("PPU OAM DATA write:{}".format(hex(data)))
-            return
+            self.write_oam_data(self.oam_addr, data)
+            #print("OAM addr:{}   data:{}".format(hex(self.oam_addr), hex(data)))
+            self.oam_addr += 1
+
         elif address == 0x2005:
             self.last_written_data = data
             if self.address_latch == 0:
@@ -771,10 +964,10 @@ class VramRegister:
 
 class ShiftRegister:
 
-    def __init__(self, len):
+    def __init__(self, len, val=0):
         self.len = len
         self.mask = 1 << (len - 1)
-        self.value = 0
+        self.value = val
 
     def shift(self):
         b = (self.value & self.mask) >> (self.len - 1)

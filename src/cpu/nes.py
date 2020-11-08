@@ -35,6 +35,13 @@ class Nes:
         self.bus.connect(self.ppu)
         self.num_of_cycles = 1
 
+        self.write_complete = False
+        self.odd_cycle_checked = False
+        self.dma_data = 0x00
+        self.dma_offset = 0x00
+
+        self.cpu_cycles_to_add = 0
+
     def get_pressed_button(self):
         for event in pygame.event.get(pygame.KEYDOWN):
             if event.type == pygame.KEYDOWN:
@@ -43,9 +50,13 @@ class Nes:
                 elif event.key == pygame.K_DOWN:
                     self.apu.pressed_down()
                 elif event.key == pygame.K_LEFT:
-                    print("key left")
+                    self.apu.pressed_left()
+                    #print("key left - enable print")
+                    #self.c.enable_print = True
                 elif event.key == pygame.K_RIGHT:
-                    print("key right")
+                    self.apu.pressed_right()
+                    #print("key right - disable print")
+                    #self.c.enable_print = False
                 elif event.key == pygame.K_RETURN:
                     self.apu.pressed_start()
                 elif event.key == pygame.K_1:
@@ -55,7 +66,35 @@ class Nes:
         while True:
             self.ppu.clock()
             if self.num_of_cycles % 3 == 0:
-                self.c.clock()
+                if self.bus.dma_request:
+                    # suspend CPU, it takes 513/514 clock cycles
+                    if self.write_complete == False:
+                        self.write_complete = True
+                    elif self.odd_cycle_checked == False and self.num_of_cycles % 2 == 1:
+                        self.odd_cycle_checked = True
+                        self.cpu_cycles_to_add += 1
+                    else:
+                        if self.num_of_cycles % 2 == 0:
+                            # read data
+                            addr = (self.bus.dma_high_byte << 8) | self.dma_offset
+                            #print("PPU OAM read from addr:{}".format(hex(addr)))
+                            self.dma_data = self.c.read((self.bus.dma_high_byte << 8) | self.dma_offset)
+                        else:
+                            # write data to ppu
+                            #print("PPU OAM write idx:{}   data:{}".format(self.dma_offset, hex(self.dma_data)))
+                            self.ppu.write_oam_data(self.dma_offset, self.dma_data)
+                            self.dma_offset += 1
+                            if self.dma_offset > 0xff:
+                                self.cpu_cycles_to_add += 513
+                                self.bus.dma_request = False
+                                self.write_complete = False
+                                self.odd_cycle_checked = False
+                                self.dma_offset = 0x00
+                                self.c.clock_ticks += self.cpu_cycles_to_add
+                                #print("add extra ticks: {}".format(self.cpu_cycles_to_add))
+                                self.cpu_cycles_to_add = 0
+                else:
+                    self.c.clock()
 
             if self.ppu.raise_nmi and self.c.new_instruction:
                 #print("NMI request cyc:{}".format(self.c.clock_ticks))
@@ -64,6 +103,7 @@ class Nes:
                 fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
                 fh.close()
                 self.ppu.raise_nmi = False
+                #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
                 self.ppu.cycle += 21
 
             self.num_of_cycles += 1

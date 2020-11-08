@@ -3,20 +3,32 @@ class Bus:
 
     def __init__(self):
         self.__devices = []
+        self.dma_request = False
+        self.dma_high_byte = 0x00
 
     def write(self, address, data):
-        d = self.get_device_by_address(address)
-        if d:
-            d.write(address, data)
+
+        if address == 0x4014:
+            self.dma_high_byte = data
+            self.dma_request = True
+            #print("BUS DMA transfer request")
         else:
-            raise Exception("device not found for address: {}".format(hex(address)))
+            d = self.get_device_by_address(address)
+            if d:
+                d.write(address, data)
+            else:
+                raise Exception("device not found for address: {}".format(hex(address)))
 
     def read(self, address):
-        d = self.get_device_by_address(address)
-        if d:
-            return d.read(address)
+        if address == 0x4014:
+            #print("BUS DMA read")
+            return self.dma_high_byte # TODO: implement it
         else:
-            raise Exception("device not found for address: {}".format(hex(address)))
+            d = self.get_device_by_address(address)
+            if d:
+                return d.read(address)
+            else:
+                raise Exception("device not found for address: {}".format(hex(address)))
 
     def get_device_by_address(self, address):
         for d in self.__devices:
@@ -349,6 +361,7 @@ class Cpu:
 
         self.cycles_left_to_perform_current_instruction = 0
         self.new_instruction = False
+        self.enable_print = False
 
     def dbg_inst_bytes(self, i_size):
         b = ""
@@ -381,6 +394,8 @@ class Cpu:
             self.new_instruction = True
             log_msg = ""
             cpu_state_before = ""
+            if self.pc == 0xc1d7:
+                j=4
 
             instruction = self.read(self.pc)
             log_msg += "{} ".format(self.to_hex(self.pc, 4)).upper()
@@ -400,7 +415,8 @@ class Cpu:
             log_msg += cpu_state_before
 
             #if self.clock_ticks < 100:
-            #print(log_msg.upper())
+            if self.enable_print:
+                print(log_msg.upper())
             fh = open("log.txt", "a")
             fh.write(log_msg)
             fh.close()
@@ -416,9 +432,6 @@ class Cpu:
         return self.bus.read(address)
 
     def write(self, address, data):
-        if address == 0x7ff:
-            j=3
-
         return self.bus.write(address, data)
 
     def push(self, value):
@@ -446,7 +459,7 @@ class Cpu:
 
         self.a = 0x90
         self.x = 0x05
-        self.y = 0x0
+        self.y = 0x02
         self.sp = 0xFC    # end of stack
 
         self.sr = StatusRegister()
@@ -578,12 +591,24 @@ class Apu:
         self.btn_up = False
         self.btn_start = False
         self.btn_select = False
+        self.btn_left = False
+        self.btn_right = False
 
     def read(self, address):
         if address == 0x4016:
             d = self.data[address - self.start_addr]
             d = 0x40
             if self.read_button:
+                if self.cnt == 7:
+                    if self.btn_right:
+                        d = 0x41
+                        self.btn_right = False
+                        print("RIGHT")
+                if self.cnt == 6:
+                    if self.btn_left:
+                        d = 0x41
+                        self.btn_left = False
+                        print("LEFT")
                 if self.cnt == 5:
                     if self.btn_down:
                         d = 0x41
@@ -633,7 +658,7 @@ class Apu:
         self.data[address - self.start_addr] = data
 
     def is_address_valid(self, address):
-        if self.start_addr <= address <= self.end_addr:
+        if self.start_addr <= address <= self.end_addr and address != 0x4014:
             return True
         return False
 
@@ -648,6 +673,12 @@ class Apu:
 
     def select_pressed(self):
         self.btn_select = True
+
+    def pressed_right(self):
+        self.btn_right = True
+
+    def pressed_left(self):
+        self.btn_left = True
 
 
 class StatusRegister:
@@ -690,10 +721,13 @@ class Adc:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
+
+        self.str = ("ADC " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         result = self.cpu.a + operand + self.cpu.sr.c
 
@@ -724,7 +758,8 @@ class Adc:
         return self.addressMode.size
 
     def __repr__(self):
-        return "ADC {}".format(self.addressMode)
+        return self.str
+        #return "ADC {}".format(self.addressMode)
 
 
 class And:
@@ -773,7 +808,7 @@ class Asl:
             operand = self.cpu.read(address)
         tmp = (operand << 1)
 
-        self.str = ("ASL " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("ASL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.sr.n = (tmp & 0x80) >> 7
         if tmp > 255:
@@ -814,8 +849,8 @@ class Bcc:
     def execute(self):
         addr = self.addressMode.get_address()
 
-        #self.str = ("BCC " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-        self.str = ("BCC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("BCC " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
+        #self.str = ("BCC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.sr.c == 0:
             self.cpu.pc = addr
@@ -2172,7 +2207,9 @@ class Sbc:
 
         self.str = ("SBC " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
-        tmp = self.cpu.a - operand
+        #tmp = self.cpu.a - operand - (1 - self.cpu.sr.c)
+        tmp = signed_int_to_hex(self.cpu.a - operand - (1 - self.cpu.sr.c))
+        res = signed_int_to_hex(self.cpu.a - operand - (1 - self.cpu.sr.c))
 
         if (self.cpu.a & 0x80) == 0 and (operand & 0x80) > 0:
             tmp -= 1
@@ -2212,7 +2249,7 @@ class Sbc:
         if self.cpu.a == 0x80 and operand == 0x00:
             tmp = 0x7f
 
-        self.cpu.a = tmp
+        self.cpu.a = res
 
         return self.addressMode.cycles
 
@@ -2383,7 +2420,7 @@ class Stx:
     def execute(self):
         abs_addr = self.addressMode.get_address()
 
-        self.str = ("STX " + ascii(self.addressMode) + to_str_hex(self.cpu.read(abs_addr))).upper().ljust(LOG_WIDTH, " ")
+        self.str = ("STX " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(abs_addr))).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.write(abs_addr, self.cpu.x)
         return self.addressMode.cycles
@@ -2400,11 +2437,13 @@ class Sty:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
+        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         #self.addressMode.fetch()
         #abs_addr = self.addressMode.abs_address()
+        self.str = ("STY " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.write(addr, self.cpu.y)
         return self.addressMode.cycles
@@ -2413,7 +2452,8 @@ class Sty:
         return self.addressMode.size
 
     def __repr__(self):
-        return "STY {}".format(ascii(self.addressMode))
+        return self.str
+        #return "STY {}".format(ascii(self.addressMode))
 
 
 class Tax:
