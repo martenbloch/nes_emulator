@@ -1,3 +1,4 @@
+import pygame
 
 class Bus:
 
@@ -417,9 +418,9 @@ class Cpu:
             #if self.clock_ticks < 100:
             if self.enable_print:
                 print(log_msg.upper())
-            fh = open("log.txt", "a")
-            fh.write(log_msg)
-            fh.close()
+            #fh = open("log.txt", "a")
+            #fh.write(log_msg)
+            #fh.close()
 
                 #print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
@@ -645,13 +646,32 @@ class Apu:
 
         return self.data[address - self.start_addr]
 
+    def get_pressed_button(self):
+        for event in pygame.event.get(pygame.KEYDOWN):
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    self.pressed_up()
+                elif event.key == pygame.K_DOWN:
+                    self.pressed_down()
+                elif event.key == pygame.K_LEFT:
+                    self.pressed_left()
+                    #print("key left - enable print")
+                    #self.c.enable_print = True
+                elif event.key == pygame.K_RIGHT:
+                    self.pressed_right()
+                    #print("key right - disable print")
+                    #self.c.enable_print = False
+                elif event.key == pygame.K_RETURN:
+                    self.pressed_start()
+                elif event.key == pygame.K_1:
+                    self.select_pressed()
+
     def write(self, address, data):
         if address == 0x4016:
-            #print("write: {}".format(hex(data)))
             self.cnt = 0
             if data & 0x1 == 0:
-                #print("------- READ BUTTON--------")
                 self.read_button = True
+                self.get_pressed_button()
             else:
                 self.read_button = False
 

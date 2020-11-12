@@ -2,7 +2,9 @@ from src.cpu import cpu
 from src.cpu import ppu
 from src.cpu import frame
 import pygame
-
+import cProfile
+import pstats
+import re
 
 
 
@@ -10,7 +12,7 @@ import pygame
 class Nes:
     def __init__(self, screen):
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
-        self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
+        #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
@@ -22,6 +24,8 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/scanline.nes")
         #self.cartridge = cpu.Cardrige("tests/allpads.nes")
         #self.cartridge = cpu.Cardrige("tests/read_joy3/test_buttons.nes")
+
+        self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
 
         self.ppu = ppu.Ppu(screen, self.cartridge)
         self.bus = cpu.Bus()
@@ -63,7 +67,9 @@ class Nes:
                     self.apu.select_pressed()
 
     def start(self):
+        i=0
         while True:
+        #while i<8000000:
             self.ppu.clock()
             if self.num_of_cycles % 3 == 0:
                 if self.bus.dma_request:
@@ -108,7 +114,8 @@ class Nes:
 
             self.num_of_cycles += 1
 
-            self.get_pressed_button()
+            #self.get_pressed_button()
+            i+=1
 
     def reset(self):
         self.c.reset()
@@ -129,12 +136,23 @@ class Screen:
 
         pygame.display.update()
 
-
-if __name__ == "__main__":
-    print("NES emulator")
-
+def profile_fun():
     screen = Screen()
     nes = Nes(screen)
     nes.reset()
     nes.start()
 
+if __name__ == "__main__":
+    print("NES emulator")
+
+    #screen = Screen()
+    #nes = Nes(screen)
+    #nes.reset()
+    #nes.start()
+
+    #profiler = cProfile.Profile()
+    #profiler.enable()
+    profile_fun()
+    #profiler.disable()
+    #stats = pstats.Stats(profiler).sort_stats('tottime')
+    #stats.print_stats()
