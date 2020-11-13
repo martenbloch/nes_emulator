@@ -1,5 +1,6 @@
 import pygame
 
+
 class Bus:
 
     def __init__(self):
@@ -9,27 +10,33 @@ class Bus:
 
     def write(self, address, data):
 
-        if address == 0x4014:
-            self.dma_high_byte = data
-            self.dma_request = True
-            #print("BUS DMA transfer request")
-        else:
+        if address != 0x4014:
             d = self.get_device_by_address(address)
             if d:
                 d.write(address, data)
             else:
                 raise Exception("device not found for address: {}".format(hex(address)))
 
-    def read(self, address):
-        if address == 0x4014:
-            #print("BUS DMA read")
-            return self.dma_high_byte # TODO: implement it
         else:
+            self.dma_high_byte = data
+            self.dma_request = True
+
+    def read(self, address, num_bytes=1):
+        if address != 0x4014:
             d = self.get_device_by_address(address)
             if d:
                 return d.read(address)
             else:
                 raise Exception("device not found for address: {}".format(hex(address)))
+        else:
+            return self.dma_high_byte  # TODO: implement it
+
+    def read_many(self, address, num_bytes=1):
+        d = self.get_device_by_address(address)
+        if d:
+            return d.read_many(address, num_bytes)
+        else:
+            raise Exception("device not found for address: {}".format(hex(address)))
 
     def get_device_by_address(self, address):
         for d in self.__devices:
@@ -40,7 +47,9 @@ class Bus:
     def connect(self, device):
         self.__devices.append(device)
 
+
 LOG_WIDTH = 38
+
 
 class Cpu:
 
@@ -64,6 +73,302 @@ class Cpu:
 
         self.operand = 0x00
 
+        self.instructions = [None for i in range(256)]
+        self.instructions[0x61] = Adc(self, AddressModeIndirectX(self))
+        self.instructions[0x65] = Adc(self, AddressModeZeroPage(self))
+        self.instructions[0x69] = Adc(self, AddressModeImmediate(self))
+        self.instructions[0x6D] = Adc(self, AddressModeAbsolute(self))
+        self.instructions[0x71] = Adc(self, AddressModeIndirectY(self))
+        self.instructions[0x75] = Adc(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0x79] = Adc(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0x7D] = Adc(self, AddressModeAbsoluteXIndexed(self, 4))
+
+        self.instructions[0x21] = And(self, AddressModeIndirectX(self))
+        self.instructions[0x25] = And(self, AddressModeZeroPage(self))
+        self.instructions[0x29] = And(self, AddressModeImmediate(self))
+        self.instructions[0x2D] = And(self, AddressModeAbsolute(self))
+        self.instructions[0x31] = And(self, AddressModeIndirectY(self))
+        self.instructions[0x35] = And(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0x39] = And(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0x3D] = And(self, AddressModeAbsoluteXIndexed(self, 4))
+
+        self.instructions[0x06] = Asl(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x0A] = Asl(self, AddressModeAccumulator(self))
+        self.instructions[0x0E] = Asl(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x16] = Asl(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x1E] = Asl(self, AddressModeAbsoluteXIndexed(self, 7))
+
+        self.instructions[0x90] = Bcc(self, AddressModeRelative(self))
+
+        self.instructions[0xB0] = Bcs(self, AddressModeRelative(self))
+
+        self.instructions[0xF0] = Beq(self, AddressModeRelative(self))
+
+        self.instructions[0x24] = Bit(self, AddressModeZeroPage(self))
+        self.instructions[0x2C] = Bit(self, AddressModeAbsolute(self))
+
+        self.instructions[0x30] = Bmi(self, AddressModeRelative(self))
+
+        self.instructions[0xD0] = Bne(self, AddressModeRelative(self))
+
+        self.instructions[0x10] = Bpl(self, AddressModeRelative(self))
+
+        self.instructions[0x00] = Brk(self, AddressModeImplied(7))
+
+        self.instructions[0x50] = Bvc(self, AddressModeRelative(self))
+
+        self.instructions[0x70] = Bvs(self, AddressModeRelative(self))
+
+        self.instructions[0x18] = Clc(self, AddressModeImplied())
+
+        self.instructions[0xD8] = Cld(self, AddressModeImplied())
+
+        self.instructions[0x58] = Cli(self, AddressModeImplied())
+
+        self.instructions[0xB8] = Clv(self, AddressModeImplied())
+
+        self.instructions[0xC1] = Cmp(self, AddressModeIndirectX(self))
+        self.instructions[0xC5] = Cmp(self, AddressModeZeroPage(self))
+        self.instructions[0xC9] = Cmp(self, AddressModeImmediate(self))
+        self.instructions[0xCD] = Cmp(self, AddressModeAbsolute(self))
+        self.instructions[0xD1] = Cmp(self, AddressModeIndirectY(self))
+        self.instructions[0xD5] = Cmp(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0xD9] = Cmp(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0xDD] = Cmp(self, AddressModeAbsoluteXIndexed(self, 4))
+
+        self.instructions[0xE0] = Cpx(self, AddressModeImmediate(self))
+        self.instructions[0xE4] = Cpx(self, AddressModeZeroPage(self))
+        self.instructions[0xEC] = Cpx(self, AddressModeAbsolute(self))
+
+        self.instructions[0xC0] = Cpy(self, AddressModeImmediate(self))
+        self.instructions[0xC4] = Cpy(self, AddressModeZeroPage(self))
+        self.instructions[0xC4] = Cpy(self, AddressModeZeroPage(self))
+        self.instructions[0xCC] = Cpy(self, AddressModeAbsolute(self))
+
+        self.instructions[0xC3] = Dcp(self, AddressModeIndirectX(self, 8))
+        self.instructions[0xC7] = Dcp(self, AddressModeZeroPage(self, 5))
+        self.instructions[0xCF] = Dcp(self, AddressModeAbsolute(self, 6))
+        self.instructions[0xD3] = Dcp(self, AddressModeIndirectY(self, 8, False))
+        self.instructions[0xD7] = Dcp(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0xDB] = Dcp(self, AddressModeAbsoluteYIndexed(self, 7, False))
+        self.instructions[0xDF] = Dcp(self, AddressModeAbsoluteXIndexed(self, 7, False))
+
+        self.instructions[0xC6] = Dec(self, AddressModeZeroPage(self, 5))
+        self.instructions[0xCE] = Dec(self, AddressModeAbsolute(self, 6))
+        self.instructions[0xD6] = Dec(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0xDE] = Dec(self, AddressModeAbsoluteXIndexed(self, 7))
+
+        self.instructions[0xCA] = Dex(self, AddressModeImplied())
+
+        self.instructions[0x88] = Dey(self, AddressModeImplied())
+
+        self.instructions[0x41] = Eor(self, AddressModeIndirectX(self))
+        self.instructions[0x45] = Eor(self, AddressModeZeroPage(self))
+        self.instructions[0x49] = Eor(self, AddressModeImmediate(self))
+        self.instructions[0x4D] = Eor(self, AddressModeAbsolute(self))
+        self.instructions[0x51] = Eor(self, AddressModeIndirectY(self))
+        self.instructions[0x55] = Eor(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0x59] = Eor(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0x5D] = Eor(self, AddressModeAbsoluteXIndexed(self, 4))
+
+        self.instructions[0xE6] = Inc(self, AddressModeZeroPage(self, 5))
+        self.instructions[0xEE] = Inc(self, AddressModeAbsolute(self, 6))
+        self.instructions[0xF6] = Inc(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0xFE] = Inc(self, AddressModeAbsoluteXIndexed(self, 7))
+
+        self.instructions[0xE8] = Inx(self, AddressModeImplied())
+
+        self.instructions[0xC8] = Iny(self, AddressModeImplied())
+
+        self.instructions[0xE3] = Isb(self, AddressModeIndirectX(self, 8))
+        self.instructions[0xE7] = Isb(self, AddressModeZeroPage(self, 5))
+        self.instructions[0xEF] = Isb(self, AddressModeAbsolute(self, 6))
+        self.instructions[0xF3] = Isb(self, AddressModeIndirectY(self, 8, False))
+        self.instructions[0xF7] = Isb(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0xFB] = Isb(self, AddressModeAbsoluteYIndexed(self, 7, False))
+        self.instructions[0xFF] = Isb(self, AddressModeAbsoluteXIndexed(self, 7, False))
+
+        self.instructions[0x4C] = Jmp(self, AddressModeAbsolute(self, 3))
+        self.instructions[0x6C] = Jmp(self, AddressModeIndirect(self, 5))
+
+        self.instructions[0x20] = Jsr(self, AddressModeAbsolute(self, 6))
+
+        self.instructions[0xA3] = Lax(self, AddressModeIndirectX(self))
+        self.instructions[0xAF] = Lax(self, AddressModeAbsolute(self))
+        self.instructions[0xB3] = Lax(self, AddressModeIndirectY(self))
+        self.instructions[0xB7] = Lax(self, AddressModeZeroPageYIndexed(self))
+        self.instructions[0xBF] = Lax(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0xA7] = Lax(self, AddressModeZeroPage(self))
+
+        self.instructions[0xA1] = Lda(self, AddressModeIndirectX(self))
+        self.instructions[0xA5] = Lda(self, AddressModeZeroPage(self))
+        self.instructions[0xA9] = Lda(self, AddressModeImmediate(self))
+        self.instructions[0xAD] = Lda(self, AddressModeAbsolute(self))
+        self.instructions[0xB1] = Lda(self, AddressModeIndirectY(self))
+        self.instructions[0xB5] = Lda(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0xB9] = Lda(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0xBD] = Lda(self, AddressModeAbsoluteXIndexed(self, 4))
+
+        self.instructions[0xA2] = Ldx(self, AddressModeImmediate(self))
+        self.instructions[0xA6] = Ldx(self, AddressModeZeroPage(self))
+        self.instructions[0xAE] = Ldx(self, AddressModeAbsolute(self))
+        self.instructions[0xB6] = Ldx(self, AddressModeZeroPageYIndexed(self))
+        self.instructions[0xBE] = Ldx(self, AddressModeAbsoluteYIndexed(self, 4))
+
+        self.instructions[0xA0] = Ldy(self, AddressModeImmediate(self))
+        self.instructions[0xA4] = Ldy(self, AddressModeZeroPage(self))
+        self.instructions[0xAC] = Ldy(self, AddressModeAbsolute(self))
+        self.instructions[0xB4] = Ldy(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0xBC] = Ldy(self, AddressModeAbsoluteXIndexed(self, 4))
+
+        self.instructions[0x46] = Lsr(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x4A] = Lsr(self, AddressModeAccumulator(self))
+        self.instructions[0x4E] = Lsr(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x56] = Lsr(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x5E] = Lsr(self, AddressModeAbsoluteXIndexed(self, 7))
+
+        self.instructions[0x04] = Nop(AddressModeZeroPage(self))
+        self.instructions[0x0C] = Nop(AddressModeAbsolute(self))
+        self.instructions[0x14] = Nop(AddressModeZeroPageXIndexed(self))
+        self.instructions[0x1A] = Nop(AddressModeImplied())
+        self.instructions[0x1C] = Nop(AddressModeAbsoluteXIndexed(self, 4))
+        self.instructions[0x34] = Nop(AddressModeZeroPageXIndexed(self))
+        self.instructions[0x3A] = Nop(AddressModeImplied())
+        self.instructions[0x3C] = Nop(AddressModeAbsoluteXIndexed(self, 4))  # TODO: duplication here
+        self.instructions[0x54] = Nop(AddressModeZeroPageXIndexed(self))
+        self.instructions[0x5A] = Nop(AddressModeImplied())
+        self.instructions[0x7A] = Nop(AddressModeImplied())
+        self.instructions[0x44] = Nop(AddressModeZeroPage(self))
+        self.instructions[0x5C] = Nop(AddressModeAbsoluteXIndexed(self, 4))  # TODO: duplication here
+        self.instructions[0x64] = Nop(AddressModeZeroPage(self))
+        self.instructions[0x74] = Nop(AddressModeZeroPageXIndexed(self))
+        self.instructions[0x7C] = Nop(AddressModeAbsoluteXIndexed(self, 4))  # TODO: duplication here
+        self.instructions[0x80] = Nop(AddressModeImmediate(self))
+        self.instructions[0xD4] = Nop(AddressModeZeroPageXIndexed(self))
+        self.instructions[0xDA] = Nop(AddressModeImplied())
+        self.instructions[0xDC] = Nop(AddressModeAbsoluteXIndexed(self, 4))  # TODO: duplication here
+        self.instructions[0xEA] = Nop(AddressModeImplied())
+        self.instructions[0xF4] = Nop(AddressModeZeroPageXIndexed(self))
+        self.instructions[0xFA] = Nop(AddressModeImplied())
+        self.instructions[0xFC] = Nop(AddressModeAbsoluteXIndexed(self, 4)) # TODO: duplication here
+
+        self.instructions[0x01] = Ora(self, AddressModeIndirectX(self))
+        self.instructions[0x05] = Ora(self, AddressModeZeroPage(self))
+        self.instructions[0x09] = Ora(self, AddressModeImmediate(self))
+        self.instructions[0x0D] = Ora(self, AddressModeAbsolute(self))
+        self.instructions[0x11] = Ora(self, AddressModeIndirectY(self))
+        self.instructions[0x15] = Ora(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0x19] = Ora(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0x1D] = Ora(self, AddressModeAbsoluteXIndexed(self, 4))
+
+        self.instructions[0x48] = Pha(self, AddressModeImplied(3))
+
+        self.instructions[0x08] = Php(self, AddressModeImplied(3))
+
+        self.instructions[0x68] = Pla(self, AddressModeImplied(4))
+
+        self.instructions[0x28] = Plp(self, AddressModeImplied(4))
+
+        self.instructions[0x23] = Rla(self, AddressModeIndirectX(self, 8))
+        self.instructions[0x27] = Rla(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x2F] = Rla(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x33] = Rla(self, AddressModeIndirectY(self, 8, False))
+        self.instructions[0x37] = Rla(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x3B] = Rla(self, AddressModeAbsoluteYIndexed(self, 7, False))
+        self.instructions[0x3F] = Rla(self, AddressModeAbsoluteXIndexed(self, 7, False))
+
+        self.instructions[0x2A] = Rol(self, AddressModeAccumulator(self))
+        self.instructions[0x26] = Rol(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x36] = Rol(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x2E] = Rol(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x3E] = Rol(self, AddressModeAbsoluteXIndexed(self, 7))
+
+        self.instructions[0x6A] = Ror(self, AddressModeAccumulator(self))
+        self.instructions[0x66] = Ror(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x76] = Ror(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x6E] = Ror(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x7E] = Ror(self, AddressModeAbsoluteXIndexed(self, 7))
+
+        self.instructions[0x63] = Rra(self, AddressModeIndirectX(self, 8))
+        self.instructions[0x67] = Rra(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x6F] = Rra(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x73] = Rra(self, AddressModeIndirectY(self, 8, False))
+        self.instructions[0x77] = Rra(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x7B] = Rra(self, AddressModeAbsoluteYIndexed(self, 7, False))
+        self.instructions[0x7F] = Rra(self, AddressModeAbsoluteXIndexed(self, 7, False))
+
+        self.instructions[0x40] = Rti(self, AddressModeImplied(6))
+
+        self.instructions[0x60] = Rts(self, AddressModeImplied(6))
+
+        self.instructions[0xCB] = Sax(self, AddressModeImmediate(self))
+        self.instructions[0x83] = Sax(self, AddressModeIndirectX(self))
+        self.instructions[0x87] = Sax(self, AddressModeZeroPage(self))
+        self.instructions[0x8F] = Sax(self, AddressModeAbsolute(self))
+        self.instructions[0x97] = Sax(self, AddressModeZeroPageYIndexed(self))
+
+        self.instructions[0xE9] = Sbc(self, AddressModeImmediate(self))
+        self.instructions[0xE5] = Sbc(self, AddressModeZeroPage(self))
+        self.instructions[0xEB] = Sbc(self, AddressModeImmediate(self))
+        self.instructions[0xF5] = Sbc(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0xED] = Sbc(self, AddressModeAbsolute(self))
+        self.instructions[0xFD] = Sbc(self, AddressModeAbsoluteXIndexed(self, 4))
+        self.instructions[0xF9] = Sbc(self, AddressModeAbsoluteYIndexed(self, 4))
+        self.instructions[0xE1] = Sbc(self, AddressModeIndirectX(self))
+        self.instructions[0xF1] = Sbc(self, AddressModeIndirectY(self))
+
+        self.instructions[0x38] = Sec(self, AddressModeImplied())
+
+        self.instructions[0xF8] = Sed(self, AddressModeImplied())
+
+        self.instructions[0x78] = Sei(self, AddressModeImplied())
+
+        self.instructions[0x03] = Slo(self, AddressModeIndirectX(self, 8))
+        self.instructions[0x07] = Slo(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x0F] = Slo(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x13] = Slo(self, AddressModeIndirectY(self, 8, False))
+        self.instructions[0x17] = Slo(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x1B] = Slo(self, AddressModeAbsoluteYIndexed(self, 7, False))
+        self.instructions[0x1F] = Slo(self, AddressModeAbsoluteXIndexed(self, 7, False))
+
+        self.instructions[0x43] = Sre(self, AddressModeIndirectX(self, 8))
+        self.instructions[0x47] = Sre(self, AddressModeZeroPage(self, 5))
+        self.instructions[0x4F] = Sre(self, AddressModeAbsolute(self, 6))
+        self.instructions[0x53] = Sre(self, AddressModeIndirectY(self, 8, False))
+        self.instructions[0x57] = Sre(self, AddressModeZeroPageXIndexed(self, 6))
+        self.instructions[0x5B] = Sre(self, AddressModeAbsoluteYIndexed(self, 7, False))
+        self.instructions[0x5F] = Sre(self, AddressModeAbsoluteXIndexed(self, 7, False))
+
+        self.instructions[0x81] = Sta(self, AddressModeIndirectX(self))
+        self.instructions[0x85] = Sta(self, AddressModeZeroPage(self))
+        self.instructions[0x8D] = Sta(self, AddressModeAbsolute(self))
+        self.instructions[0x91] = Sta(self, AddressModeIndirectY(self, 6))
+        self.instructions[0x95] = Sta(self, AddressModeZeroPageXIndexed(self, 4))
+        self.instructions[0x99] = Sta(self, AddressModeAbsoluteYIndexed(self, 5))
+        self.instructions[0x9D] = Sta(self, AddressModeAbsoluteXIndexed(self, 5, False))
+
+        self.instructions[0x86] = Stx(self, AddressModeZeroPage(self))
+        self.instructions[0x96] = Stx(self, AddressModeZeroPageYIndexed(self))
+        self.instructions[0x8E] = Stx(self, AddressModeAbsolute(self))
+
+        self.instructions[0x84] = Sty(self, AddressModeZeroPage(self))
+        self.instructions[0x94] = Sty(self, AddressModeZeroPageXIndexed(self))
+        self.instructions[0x8C] = Sty(self, AddressModeAbsolute(self))
+
+        self.instructions[0xAA] = Tax(self, AddressModeImplied())
+
+        self.instructions[0xA8] = Tay(self, AddressModeImplied())
+
+        self.instructions[0xBA] = Tsx(self, AddressModeImplied())
+
+        self.instructions[0x8A] = Txa(self, AddressModeImplied())
+
+        self.instructions[0x9A] = Txs(self, AddressModeImplied())
+
+        self.instructions[0x98] = Tya(self, AddressModeImplied())
+
+
+        '''
         self.instructions = {
             0x61: Adc(self, AddressModeIndirectX(self)),
             0x65: Adc(self, AddressModeZeroPage(self)),
@@ -359,6 +664,7 @@ class Cpu:
 
             0x98: Tya(self, AddressModeImplied()),
                             }
+        '''
 
         self.cycles_left_to_perform_current_instruction = 0
         self.new_instruction = False
@@ -367,7 +673,7 @@ class Cpu:
     def dbg_inst_bytes(self, i_size):
         b = ""
         for i in range(i_size):
-            b += "$" + to_str_hex(self.read(self.pc + i))
+            b += "${:X}".format(self.read(self.pc + i))
         return b
 
     def fetch(self):
@@ -376,75 +682,70 @@ class Cpu:
     def decode(self, a_instruction):
         pass
 
-    def to_hex(self, val, num_fields=2):
-        return hex(val)[2:].zfill(num_fields)
+    #def to_hex(self, val, num_fields=2):
+    #    return hex(val)[2:].zfill(num_fields)
 
     def to_str(self):
-        return "A:{} X:{} Y:{} P:{} SP:{}".format(self.to_hex(self.a), self.to_hex(self.x), self.to_hex(self.y), self.to_hex(self.sr.to_byte()), self.to_hex(self.sp))
+        #return "A:{} X:{} Y:{} P:{} SP:{}".format(self.to_hex(self.a), self.to_hex(self.x), self.to_hex(self.y), self.to_hex(self.sr.to_byte()), self.to_hex(self.sp))
+        return "A:{:X} X:{:X} Y:{:X} P:{:X} SP:{:X}".format(self.a, self.x, self.y, self.sr.to_byte(), self.sp)
 
     def inst_as_bytes(self, instruction_size):
-        s = ""
-        for i in range(instruction_size):
-            s += "${} ".format(self.to_hex(self.read(self.pc + i)))
-            #s += "{} ".format(self.to_hex(self.read(self.pc + i))) # nesdev tests
-        return s.upper().ljust(12, " ")
-        #return s.upper().ljust(10, " ") # NESDEV
+        #s = ""
+        b = self.read_many(instruction_size)
+        #s = (len(b) * "{:02X} ").format(*b)
+        #for i in range(instruction_size):
+        #    s += "${:X} ".format(self.read(self.pc + i))
+        #return s.ljust(12, " ")
+        return ((len(b) * "{:02X} ").format(*b)).ljust(12, " ")
 
     def clock(self):
         if self.cycles_left_to_perform_current_instruction == 0:
             self.new_instruction = True
             log_msg = ""
             cpu_state_before = ""
-            if self.pc == 0xc1d7:
-                j=4
 
             instruction = self.read(self.pc)
-            log_msg += "{} ".format(self.to_hex(self.pc, 4)).upper()
-            #log_msg += "{}  ".format(self.to_hex(self.pc, 4)).upper() # nesdev
-            log_msg += self.inst_as_bytes(self.instructions[instruction].size())
-            cpu_state_before = self.to_str().upper()
-            ppu = self.bus.get_device_by_address(0x2000)
-            #cpu_state_before += "CYC:{} SL:{} FC:{} CPU Cycle:{}\r\n".format(str(ppu.cycle).ljust(3, ' '), str(ppu.scanline).ljust(3, ' '), ppu.frame_cnt, self.clock_ticks)
-            #cpu_state_before += " PPU:{},{} CYC:{}\n".format(str(ppu.scanline).rjust(3, ' '),
-            #                                                                 str(ppu.cycle).rjust(3, ' '),
-            #                                                                 self.clock_ticks)
-            cpu_state_before += "\r\n"
+
+            if self.enable_print:
+                log_msg += "{:04X} ".format(self.pc)
+                log_msg += self.inst_as_bytes(self.instructions[instruction].size())
+                cpu_state_before = self.to_str()
+                ppu = self.bus.get_device_by_address(0x2000)
+                cpu_state_before += "\r\n"
             self.pc += 1
 
             self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
-            log_msg += ascii(self.instructions[instruction])
-            log_msg += cpu_state_before
 
-            #if self.clock_ticks < 100:
             if self.enable_print:
-                print(log_msg.upper())
-            #fh = open("log.txt", "a")
-            #fh.write(log_msg)
-            #fh.close()
+                log_msg += ascii(self.instructions[instruction])
+                log_msg += cpu_state_before
+                #print(log_msg.upper())
+                fh = open("log.txt", "a")
+                fh.write(log_msg)
+                fh.close()
 
-                #print(ascii(self.instructions[instruction]) + "   " + ascii(self))
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
         else:
             self.new_instruction = False
 
         self.cycles_left_to_perform_current_instruction -= 1
 
-    def read(self, address):
+    def read(self, address, num_bytes=1):
         return self.bus.read(address)
+
+    def read_many(self, address, num_bytes=1):
+        return self.bus.read_many(address, num_bytes)
 
     def write(self, address, data):
         return self.bus.write(address, data)
 
     def push(self, value):
-        #print("push: {}  SP:{}".format(hex(value), hex(self.sp)))
         self.write(0x0100 | self.sp, value)
         self.sp -= 1
 
     def pop(self):
         self.sp += 1
-        val = self.read(0x0100 | self.sp)
-        #print("pop: {}  SP:{}".format(hex(val), hex(self.sp)))
-        return val
+        return self.read(0x0100 | self.sp)
 
     def __repr__(self):
         return "CPU A:{}  X:{}  Y:{}  PC:{}  SP:{}  SR:{}  CYC:{}".format(hex(self.a), hex(self.x), hex(self.y), hex(self.pc), hex(self.sp), ascii(self.sr), self.clock_ticks)
@@ -467,7 +768,6 @@ class Cpu:
         self.sr.from_byte(0x85)
 
     def nmi(self):
-        #print("CPU: NMI request")
         self.push((self.pc & 0xFF00) >> 8)
         self.push(self.pc & 0xFF)
         self.push(self.sr.to_byte())
@@ -480,7 +780,7 @@ class Cpu:
         self.pc = (hh << 8) | ll
         self.sr.i = 1
         self.clock_ticks += 7
-        #self.clock_ticks = 8
+
 
 class RamMemory:
 
@@ -490,13 +790,15 @@ class RamMemory:
     def read(self, address):
         return self.data[address & 0x07FF]
 
+    def read_many(self, address, num_bytes=1):
+        address &= 0x07FF
+        return tuple(self.data[address: address+num_bytes])
+
     def write(self, address, data):
         self.data[address & 0x07FF] = data
 
     def is_address_valid(self, address):
-        if 0 <= address < 0x1FFF:
-            return True
-        return False
+        return 0 <= address < 0x1FFF
 
 
 # Program ROM data 0x4020 - 0xFFFF
@@ -537,28 +839,20 @@ class Cardrige:
         else:
             raise NotImplementedError("unknown mapper id:{}".format(mapperId))
 
-        #self.data = [0 for i in range(self.end_addr - self.start_addr)]
-        #self.data[0xc000 - self.start_addr: len(prog_data)] = prog_data
-
-
-    #def __init__(self, prog_start_addr, prog_data):
-        #self.start_addr = 0x4020
-        #self.end_addr = 0xFFFF
-        #self.data = [0 for i in range(self.end_addr - self.start_addr)]
-        #self.data[prog_start_addr - self.start_addr: len(prog_data)] = prog_data
-
-    def read(self, address):
-        #return self.data[address - self.start_addr]
+    def read(self, address, num_bytes=1):
+        #mapped_addr = self.mapper.map_cpu_address(address)
+        #return self.prg[mapped_addr:mapped_addr+num_bytes]
         return self.prg[self.mapper.map_cpu_address(address)]
 
+    def read_many(self, address, num_bytes=1):
+        mapped_addr = self.mapper.map_cpu_address(address)
+        return tuple(self.prg[mapped_addr:mapped_addr+num_bytes])
+
     def write(self, address, data):
-        #self.data[address - self.start_addr] = data
         self.prg[self.mapper.map_cpu_address(address)] = data
 
     def is_address_valid(self, address):
-        if self.start_addr <= address <= self.end_addr:
-            return True
-        return False
+        return self.start_addr <= address <= self.end_addr
 
     def get_tile_data(self, tile_number, row, half):
         lower_idx = (16 * tile_number) + row
@@ -597,51 +891,32 @@ class Apu:
 
     def read(self, address):
         if address == 0x4016:
-            d = self.data[address - self.start_addr]
             d = 0x40
             if self.read_button:
-                if self.cnt == 7:
-                    if self.btn_right:
-                        d = 0x41
-                        self.btn_right = False
-                        print("RIGHT")
-                if self.cnt == 6:
-                    if self.btn_left:
-                        d = 0x41
-                        self.btn_left = False
-                        print("LEFT")
-                if self.cnt == 5:
-                    if self.btn_down:
-                        d = 0x41
-                        self.btn_down = False
-                        print("DOWN")
-                if self.cnt == 4:
-                    if self.btn_up:
-                        d = 0x43
-                        self.btn_up = False
-                        print("UP")
-                if self.cnt == 3:
-                    if self.btn_start:
-                        d = 0x41
-                        self.btn_start = False
-                        print("START")
-                if self.cnt == 2:
-                    if self.btn_select:
-                        d = 0x41
-                        self.btn_select = False
-                        print("SELECT")
-                if self.cnt > 7:
+                if self.cnt == 7 and self.btn_right:
+                    d = 0x41
+                    self.btn_right = False
+                elif self.cnt == 6 and self.btn_left:
+                    d = 0x41
+                    self.btn_left = False
+                elif self.cnt == 5 and self.btn_down:
+                    d = 0x41
+                    self.btn_down = False
+                elif self.cnt == 4 and self.btn_up:
+                    d = 0x43
+                    self.btn_up = False
+                elif self.cnt == 3 and self.btn_start:
+                    d = 0x41
+                    self.btn_start = False
+                elif self.cnt == 2 and self.btn_select:
+                    d = 0x41
+                    self.btn_select = False
+                elif self.cnt > 7:
                     d = 0x40
-                #print("read: {} cnt:{}".format(hex(d), self.cnt))
+
                 self.cnt += 1
-                #if self.cnt == 16:
-                #    self.btn_down = False
-                #    self.btn_up = False
-                #    self.btn_start = False
-                #    self.btn_select = False
             return d
         elif address == 0x4017:
-            #print("0x4017 return 0x40")
             return 0x40
 
         return self.data[address - self.start_addr]
@@ -655,12 +930,8 @@ class Apu:
                     self.pressed_down()
                 elif event.key == pygame.K_LEFT:
                     self.pressed_left()
-                    #print("key left - enable print")
-                    #self.c.enable_print = True
                 elif event.key == pygame.K_RIGHT:
                     self.pressed_right()
-                    #print("key right - disable print")
-                    #self.c.enable_print = False
                 elif event.key == pygame.K_RETURN:
                     self.pressed_start()
                 elif event.key == pygame.K_1:
@@ -678,9 +949,7 @@ class Apu:
         self.data[address - self.start_addr] = data
 
     def is_address_valid(self, address):
-        if self.start_addr <= address <= self.end_addr and address != 0x4014:
-            return True
-        return False
+        return self.start_addr <= address <= self.end_addr and address != 0x4014
 
     def pressed_down(self):
         self.btn_down = True
@@ -714,8 +983,7 @@ class StatusRegister:
         self.c = 0  # carry
 
     def to_byte(self):
-        data = (self.n << 7) + (self.v << 6) + (self.unused << 5) + (self.b << 4) + (self.d << 3) + (self.i << 2) + (self.z << 1) + self.c
-        return data
+        return (self.n << 7) + (self.v << 6) + (self.unused << 5) + (self.b << 4) + (self.d << 3) + (self.i << 2) + (self.z << 1) + self.c
 
     def from_byte(self, data):
         self.c = data & 0x1
@@ -741,13 +1009,10 @@ class Adc:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
-
-        self.str = ("ADC " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         result = self.cpu.a + operand + self.cpu.sr.c
 
@@ -778,8 +1043,8 @@ class Adc:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "ADC {}".format(self.addressMode)
+        return ("ADC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("ADC " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class And:
@@ -788,14 +1053,11 @@ class And:
         self.cpu = cpu
         self.addressMode = address_mode
         self.data = 0x00
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
         self.data = operand
-
-        self.str = ("AND " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.a = self.cpu.a & operand
 
@@ -809,8 +1071,8 @@ class And:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "AND {} = {}".format(self.addressMode, self.data)
+        return ("AND " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("AND " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Asl:
@@ -818,7 +1080,6 @@ class Asl:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
@@ -827,8 +1088,6 @@ class Asl:
         else:
             operand = self.cpu.read(address)
         tmp = (operand << 1)
-
-        self.str = ("ASL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.sr.n = (tmp & 0x80) >> 7
         if tmp > 255:
@@ -854,8 +1113,8 @@ class Asl:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "ASL {}".format(ascii(self.addressMode))
+        return ("ASL " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("ASL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 # branch on carry clear
@@ -864,13 +1123,9 @@ class Bcc:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
-
-        self.str = ("BCC " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("BCC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.sr.c == 0:
             self.cpu.pc = addr
@@ -881,8 +1136,8 @@ class Bcc:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BCC {}".format(ascii(self.addressMode))
+        return ("BCC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("BCC " + ascii(self.addressMode) + "${:X}".format(self.cpu.read(addr))).ljust(LOG_WIDTH, " ")
 
 
 # branch on carry set
@@ -891,13 +1146,9 @@ class Bcs:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
-
-        self.str = ("BCS " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr), 2)).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("BCS " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.sr.c == 1:
             self.cpu.pc = addr
@@ -908,8 +1159,8 @@ class Bcs:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BCS {}".format(ascii(self.addressMode))
+        return ("BCS " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("BCS " + ascii(self.addressMode) + "${:X}".format(self.cpu.read(addr))).ljust(LOG_WIDTH, " ")
 
 
 class Beq:
@@ -917,16 +1168,12 @@ class Beq:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
-        addr = self.addressMode.get_address()
-
-        self.str = ("BEQ " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr), 2)).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("BEQ " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
+        address = self.addressMode.get_address()
 
         if self.cpu.sr.z == 1:
-            self.cpu.pc = addr
+            self.cpu.pc = address
             return self.addressMode.cycles
         return 2
 
@@ -934,8 +1181,7 @@ class Beq:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BEQ {}".format(ascii(self.addressMode))
+        return ("BEQ " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
 
 
 class Bit:
@@ -943,14 +1189,10 @@ class Bit:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
-
-        self.str = ("BIT " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("BIT " + ascii(self.addressMode) + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.sr.n = (operand >> 7) & 0x1
         self.cpu.sr.v = (operand >> 6) & 0x1
@@ -963,8 +1205,8 @@ class Bit:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BIT {}".format(ascii(self.addressMode))
+        return ("BIT " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("BIT " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Bmi:
@@ -972,11 +1214,9 @@ class Bmi:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
-        self.str = ("BMI " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
         if self.cpu.sr.n == 1:
             self.cpu.pc = addr
             return self.addressMode.cycles
@@ -986,8 +1226,8 @@ class Bmi:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BMI {}".format(ascii(self.addressMode))
+        return ("BMI " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("BMI " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Bne:
@@ -995,16 +1235,12 @@ class Bne:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
-        addr = self.addressMode.get_address()
-
-        self.str = ("BNE " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr)) ).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("BNE " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
+        address = self.addressMode.get_address()
 
         if self.cpu.sr.z == 0:
-            self.cpu.pc = addr
+            self.cpu.pc = address
             return self.addressMode.cycles
         return 2
 
@@ -1012,8 +1248,7 @@ class Bne:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BNE {}".format(ascii(self.addressMode))
+        return ("BNE " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
 
 
 class Bpl:
@@ -1021,12 +1256,10 @@ class Bpl:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
-        self.str = ("BPL " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("BPL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ") #NESDEV
+
         if self.cpu.sr.n == 0:
             self.cpu.pc = addr
             return self.addressMode.cycles
@@ -1036,8 +1269,8 @@ class Bpl:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BPL {}".format(ascii(self.addressMode))
+        return ("BPL " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("BPL " + ascii(self.addressMode) + "${:X}".format(self.cpu.read(addr))).ljust(LOG_WIDTH, " ")
 
 
 class Brk:
@@ -1076,11 +1309,9 @@ class Bvc:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
-        self.str = ("BVC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
         if self.cpu.sr.v == 0:
             self.cpu.pc = address
             return self.addressMode.cycles
@@ -1090,8 +1321,8 @@ class Bvc:
         return self.addressMode.size
 
     def __repr__(self):
-        #return "BVC {}".format(ascii(self.addressMode))
-        return self.str
+        return ("BVC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("BVC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Bvs:
@@ -1099,11 +1330,9 @@ class Bvs:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
-        self.str = ("BVS " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
         if self.cpu.sr.v == 1:
             self.cpu.pc = addr
             return self.addressMode.cycles
@@ -1113,8 +1342,8 @@ class Bvs:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "BVS {}".format(ascii(self.addressMode))
+        return ("BVS " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("BVS " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Clc:
@@ -1122,19 +1351,17 @@ class Clc:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         self.cpu.sr.c = 0
-        self.str = ("CLC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
         return self.addressMode.cycles
 
     def size(self):
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "CLC {}".format(ascii(self.addressMode))
+        return ("CLC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("CLC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Cld:
@@ -1189,13 +1416,10 @@ class Cmp:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
-
-        self.str = ("CMP " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         result = self.cpu.a - operand
 
@@ -1220,8 +1444,8 @@ class Cmp:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "CMP {}".format(ascii(self.addressMode))
+        return ("CMP " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("CMP " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Cpx:
@@ -1229,13 +1453,10 @@ class Cpx:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
-
-        self.str = ("CPX " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         result = self.cpu.x - operand
 
@@ -1260,8 +1481,8 @@ class Cpx:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "CPX {}".format(ascii(self.addressMode))
+        return ("CPX " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("CPX " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Cpy:
@@ -1269,13 +1490,10 @@ class Cpy:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
-
-        self.str = ("CPY " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         result = self.cpu.y - operand
 
@@ -1300,8 +1518,8 @@ class Cpy:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "CPY {}".format(ascii(self.addressMode))
+        return ("CPY " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("CPY " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Dcp:
@@ -1349,13 +1567,10 @@ class Dec:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
         operand = self.cpu.read(address)
-
-        self.str = ("DEC " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         operand -= 1
 
@@ -1375,8 +1590,8 @@ class Dec:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "DEC {}".format(ascii(self.addressMode))
+        return ("DEC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("DEC " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Dex:
@@ -1427,13 +1642,11 @@ class Eor:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
 
-        self.str = ("EOR " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
         self.cpu.a = operand ^ self.cpu.a
 
         if self.cpu.a == 0:
@@ -1447,8 +1660,8 @@ class Eor:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "EOR {}".format(ascii(self.addressMode))
+        return ("EOR " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("EOR " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Inc:
@@ -1456,15 +1669,12 @@ class Inc:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
         operand = self.cpu.read(address)
         operand += 1
         operand = operand & 0xff
-
-        self.str = ("INC " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH," ")
 
         if operand == 0:
             self.cpu.sr.z = 1
@@ -1479,8 +1689,8 @@ class Inc:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "INC {}".format(ascii(self.addressMode))
+        return ("INC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("INC " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Inx:
@@ -1488,13 +1698,10 @@ class Inx:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         self.cpu.x += 1
         self.cpu.x = self.cpu.x & 0xff
-
-        self.str = ("INX " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.x == 0:
             self.cpu.sr.z = 1
@@ -1508,8 +1715,8 @@ class Inx:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "INX {}".format(ascii(self.addressMode))
+        return ("INX " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("INX " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Iny:
@@ -1610,24 +1817,16 @@ class Jmp:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
-        #address = self.addressMode.get_address()
-        #self.addressMode.fetch()
         self.cpu.pc = self.addressMode.get_address()
-
-        self.str = ("JMP " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(self.cpu.pc))).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("JMP " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
-        #self.cpu.pc = (self.cpu.read(self.cpu.pc + 2) << 8) | self.cpu.read(self.cpu.pc + 1)
         return self.addressMode.cycles
 
     def size(self):
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "JMP {}".format(ascii(self.addressMode))
+        return ("JMP " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
 
 
 # Jump to new location, save return address
@@ -1635,28 +1834,22 @@ class Jsr:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
 
-        self.str = ("JSR " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-        #self.str = ("JSR " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
-
         self.cpu.push(((self.cpu.pc-1) & 0xFF00) >> 8)  # -1 because address mode will move pc to the next instruction
         self.cpu.push((self.cpu.pc-1) & 0xFF)
 
-        #self.addressMode.fetch()
         self.cpu.pc = addr
-        #self.cpu.pc = (self.cpu.read(self.cpu.pc + 2) << 8) + self.cpu.read(self.cpu.pc + 1)
         return self.addressMode.cycles
 
     def size(self):
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "JSR {}".format(ascii(self.addressMode))
+        return ("JSR " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("JSR " + ascii(self.addressMode) + "${:X}".format(self.cpu.read(addr))).ljust(LOG_WIDTH, " ")
 
 
 class Lax:
@@ -1689,17 +1882,10 @@ class Lda:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.data = 0x00
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
-
-        operand = self.cpu.read(address)
-        self.data = operand
-        self.cpu.a = operand
-
-        self.str = ("LDA " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
+        self.cpu.a = self.cpu.read(address)
 
         if self.cpu.a == 0:
             self.cpu.sr.z = 1
@@ -1712,8 +1898,7 @@ class Lda:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "LDA {} ={}".format(ascii(self.addressMode), self.data)
+        return ("LDA " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
 
 
 class Ldx:
@@ -1721,7 +1906,6 @@ class Ldx:
         self.cpu = cpu
         self.addressMode = address_mode
         self.data = 0x00
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
@@ -1729,7 +1913,6 @@ class Ldx:
         self.data = operand
         self.cpu.x = operand
 
-        self.str = ("LDX " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
         if self.cpu.x == 0:
             self.cpu.sr.z = 1
         else:
@@ -1741,22 +1924,19 @@ class Ldx:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "LDX {} = {}".format(ascii(self.addressMode), self.data)
+        return ("LDX " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("LDX " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Ldy:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
         operand = self.cpu.read(address)
         self.cpu.y = operand
-
-        self.str = ("LDY " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.y == 0:
             self.cpu.sr.z = 1
@@ -1769,8 +1949,8 @@ class Ldy:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "LDY {}".format(ascii(self.addressMode))
+        return ("LDY " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("LDY " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Lsr:
@@ -1778,7 +1958,6 @@ class Lsr:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
@@ -1787,8 +1966,6 @@ class Lsr:
             operand = self.cpu.a
         else:
             operand = self.cpu.read(address)
-
-        self.str = ("LSR " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.sr.c = operand & 0x0001
         tmp = operand >> 1
@@ -1810,8 +1987,8 @@ class Lsr:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "LSR {}".format(ascii(self.addressMode))
+        return ("LSR " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("LSR " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Nop:
@@ -1835,13 +2012,10 @@ class Ora:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         operand = self.cpu.read(addr)
-
-        self.str = ("ORA " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.a = self.cpu.a | operand
 
@@ -1857,8 +2031,8 @@ class Ora:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "ORA {}".format(ascii(self.addressMode))
+        return ("ORA " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("ORA " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Pha:
@@ -1866,21 +2040,17 @@ class Pha:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         self.cpu.push(self.cpu.a)
-
-        self.str = ("PHA " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
-
         return self.addressMode.cycles
 
     def size(self):
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "PHA {}".format(ascii(self.addressMode))
+        return ("PHA " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("PHA " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Php:
@@ -1906,12 +2076,9 @@ class Pla:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         self.cpu.a = self.cpu.pop()
-
-        self.str = ("PLA " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
 
@@ -1925,8 +2092,8 @@ class Pla:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "PLA {}".format(ascii(self.addressMode))
+        return ("PLA " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("PLA " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Plp:
@@ -1985,7 +2152,6 @@ class Rol:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
@@ -1993,8 +2159,6 @@ class Rol:
             operand = self.cpu.a
         else:
             operand = self.cpu.read(address)
-
-        self.str = ("ROL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         old_c = self.cpu.sr.c
         self.cpu.sr.c = (operand & 0x80) >> 7  # FIXED thanks to logs
@@ -2011,22 +2175,20 @@ class Rol:
             self.cpu.sr.z = 0
 
         self.cpu.sr.n = (operand & 0x80) >> 7
-        #print("set C: {}".format(self.cpu.sr.c))
         return self.addressMode.cycles
 
     def size(self):
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "ROL {}".format(ascii(self.addressMode))
+        return ("ROL " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("ROL " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Ror:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         address = self.addressMode.get_address()
@@ -2035,7 +2197,6 @@ class Ror:
         else:
             operand = self.cpu.read(address)
 
-        self.str = ("ROR " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
         old_c = self.cpu.sr.c
         self.cpu.sr.c = operand & 0x01
         operand = (operand >> 1) | (old_c << 7)
@@ -2051,15 +2212,14 @@ class Ror:
             self.cpu.sr.z = 0
 
         self.cpu.sr.n = (operand & 0x80) >> 7
-        #print("set C: {}".format(self.cpu.sr.c))
         return self.addressMode.cycles
 
     def size(self):
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "ROR {}".format(ascii(self.addressMode))
+        return ("ROR " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("ROR " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Rra:
@@ -2218,14 +2378,11 @@ class Sbc:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         # A - M - (1 - C)
         address = self.addressMode.get_address()
         operand = self.cpu.read(address)
-
-        self.str = ("SBC " + ascii(self.addressMode) + "$" + to_str_hex(operand)).upper().ljust(LOG_WIDTH, " ")
 
         #tmp = self.cpu.a - operand - (1 - self.cpu.sr.c)
         tmp = signed_int_to_hex(self.cpu.a - operand - (1 - self.cpu.sr.c))
@@ -2277,20 +2434,17 @@ class Sbc:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "SBC {}".format(ascii(self.addressMode))
+        return ("SBC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("SBC " + ascii(self.addressMode) + "${:X}".format(operand)).ljust(LOG_WIDTH, " ")
 
 
 class Sec:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         self.cpu.sr.c = 1
-
-        self.str = ("SEC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         return self.addressMode.cycles
 
@@ -2298,8 +2452,8 @@ class Sec:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "SEC {}".format(ascii(self.addressMode))
+        return ("SEC " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("SEC " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Sed:
@@ -2403,44 +2557,26 @@ class Sta:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
-        addr = self.addressMode.get_address()
-
-        if addr >= 0x2000 and addr <= 0x2007: #fixit
-            ppu = self.cpu.bus.get_device_by_address(0x2000)
-            self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
-            #self.str = ("STA " + ascii(self.addressMode) + to_str_hex(ppu.last_written_data)).upper().ljust(LOG_WIDTH, " ")
-        else:
-            #self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-            if addr == 0x4016 or addr == 0x4017:
-                self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(0x00)).upper().ljust(LOG_WIDTH, " ")
-            else:
-                self.str = ("STA " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-            #self.str = ("STA " + ascii(self.addressMode) + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
-
-        self.cpu.write(addr, self.cpu.a)
+        address = self.addressMode.get_address()
+        self.cpu.write(address, self.cpu.a)
         return self.addressMode.cycles
 
     def size(self):
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "STA {}".format(ascii(self.addressMode))
+        return ("STA " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
 
 
 class Stx:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         abs_addr = self.addressMode.get_address()
-
-        self.str = ("STX " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(abs_addr))).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.write(abs_addr, self.cpu.x)
         return self.addressMode.cycles
@@ -2449,21 +2585,19 @@ class Stx:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "STX {}".format(ascii(self.addressMode))
+        return ("STX " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("STX " + ascii(self.addressMode) + "${:X}".format(self.cpu.read(abs_addr))).ljust(LOG_WIDTH, " ")
 
 
 class Sty:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         addr = self.addressMode.get_address()
         #self.addressMode.fetch()
         #abs_addr = self.addressMode.abs_address()
-        self.str = ("STY " + ascii(self.addressMode) + "$" + to_str_hex(self.cpu.read(addr))).upper().ljust(LOG_WIDTH, " ")
 
         self.cpu.write(addr, self.cpu.y)
         return self.addressMode.cycles
@@ -2472,20 +2606,17 @@ class Sty:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "STY {}".format(ascii(self.addressMode))
+        return ("STY " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("STY " + ascii(self.addressMode) + "${:X}".format(self.cpu.read(addr))).ljust(LOG_WIDTH, " ")
 
 
 class Tax:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         self.cpu.x = self.cpu.a
-
-        self.str = ("TAX " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.x == 0:
             self.cpu.sr.z = 1
@@ -2499,20 +2630,17 @@ class Tax:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "TAX {}".format(ascii(self.addressMode))
+        return ("TAX " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("TAX " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Tay:
     def __init__(self, cpu, address_mode):
         self.cpu = cpu
         self.addressMode = address_mode
-        self.str = ""
 
     def execute(self):
         self.cpu.y = self.cpu.a
-
-        self.str = ("TAY " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
         if self.cpu.y == 0:
             self.cpu.sr.z = 1
@@ -2526,8 +2654,8 @@ class Tay:
         return self.addressMode.size
 
     def __repr__(self):
-        return self.str
-        #return "TAY {}".format(ascii(self.addressMode))
+        return ("TAY " + ascii(self.addressMode)).ljust(LOG_WIDTH, " ")
+        #self.str = ("TAY " + ascii(self.addressMode)).upper().ljust(LOG_WIDTH, " ")
 
 
 class Tsx:
@@ -2585,8 +2713,6 @@ class Txs:
     def execute(self):
         #self.cpu.sr.from_byte(self.cpu.x)
         self.cpu.sp = self.cpu.x
-        print(ascii(self.cpu.sr))
-        print(ascii(self.cpu))
         return self.addressMode.cycles
 
     def size(self):
@@ -2654,33 +2780,17 @@ class AddressModeAbsolute:
         self.size = 3
 
     def fetch(self):
-        # after instruction we have 16bit address
-        # 1. get address of the data
-        #self.cpu.pc += 1
-        #ll = self.cpu.read(self.cpu.pc)
-        #self.cpu.pc += 1
-        #hh = self.cpu.read(self.cpu.pc)
-
-        #self.abs_address = (hh << 8) | ll
-        #self.cpu.operand = self.cpu.read(self.abs_address)
         return self.cpu.read(self.get_address())
 
-    #def abs_address(self):
-    #    return self.abs_address
     def get_address(self):
-        self.ll = self.cpu.read(self.cpu.pc)
-        self.cpu.pc += 1
-        self.hh = self.cpu.read(self.cpu.pc)
-        self.cpu.pc += 1
+        self.ll, self.hh = self.cpu.read_many(self.cpu.pc, 2)
+        self.cpu.pc += 2
         self.abs_address = (self.hh << 8) | self.ll
         return self.abs_address
 
-    #def get_bytes(self):
-    #    return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
-
     def __repr__(self):
-        return "${} = ".format(to_str_hex(self.abs_address, 4))
-        #return "${}".format(to_str_hex(self.abs_address, 4)) # NESDEV
+        return "${:04X} = ".format(self.abs_address)
+
 
 class AddressModeAbsoluteXIndexed:
 
@@ -2715,13 +2825,10 @@ class AddressModeAbsoluteXIndexed:
             self.cycles += 1
         return addr
 
-    #def get_bytes(self):
-    #    return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
-
     def __repr__(self):
         base_addr = (self.hh << 8) | self.ll
         abs_addr = base_addr + self.cpu.x
-        return "${},X @ ${} = ".format(to_str_hex(base_addr, 4), to_str_hex(abs_addr, 4))
+        return "${:X},X @ ${:04X} = ".format(base_addr, abs_addr)
 
 
 class AddressModeAbsoluteYIndexed:
@@ -3056,7 +3163,8 @@ def signed_int_to_hex(v):
 
 
 def to_str_hex(val, num_fields=2):
-        return hex(val)[2:].zfill(num_fields)
+        return "{:02X}".format(val)
+        #hex(val)[2:].zfill(num_fields)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ import re
 class Nes:
     def __init__(self, screen):
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
-        #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
+        self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
@@ -25,7 +25,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/allpads.nes")
         #self.cartridge = cpu.Cardrige("tests/read_joy3/test_buttons.nes")
 
-        self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
+        #self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
 
         self.ppu = ppu.Ppu(screen, self.cartridge)
         self.bus = cpu.Bus()
@@ -33,10 +33,11 @@ class Nes:
         self.ram = cpu.RamMemory()
         #self.cartridge = cpu.Cardrige(0xC000, [])#data[16:16 + 16384])
         self.apu = cpu.Apu()
-        self.bus.connect(self.ram)
+
         self.bus.connect(self.cartridge)
-        self.bus.connect(self.apu)
+        self.bus.connect(self.ram)
         self.bus.connect(self.ppu)
+        self.bus.connect(self.apu)
         self.num_of_cycles = 1
 
         self.write_complete = False
@@ -68,8 +69,8 @@ class Nes:
 
     def start(self):
         i=0
-        while True:
-        #while i<8000000:
+        #while True:
+        while i < 8000000:
             self.ppu.clock()
             if self.num_of_cycles % 3 == 0:
                 if self.bus.dma_request:
@@ -105,9 +106,9 @@ class Nes:
             if self.ppu.raise_nmi and self.c.new_instruction:
                 #print("NMI request cyc:{}".format(self.c.clock_ticks))
                 self.c.nmi()
-                fh = open("log.txt", "a")
-                fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
-                fh.close()
+                #fh = open("log.txt", "a")
+                #fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
+                #fh.close()
                 self.ppu.raise_nmi = False
                 #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
                 self.ppu.cycle += 21
@@ -136,23 +137,26 @@ class Screen:
 
         pygame.display.update()
 
-def profile_fun():
+
+def nes_main():
     screen = Screen()
     nes = Nes(screen)
     nes.reset()
     nes.start()
 
+
+def nes_main_profile():
+    profiler = cProfile.Profile()
+    profiler.enable()
+    nes_main()
+    profiler.disable()
+    #stats = pstats.Stats(profiler).sort_stats('tottime')
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats.print_stats()
+
+
 if __name__ == "__main__":
     print("NES emulator")
 
-    #screen = Screen()
-    #nes = Nes(screen)
-    #nes.reset()
-    #nes.start()
-
-    #profiler = cProfile.Profile()
-    #profiler.enable()
-    profile_fun()
-    #profiler.disable()
-    #stats = pstats.Stats(profiler).sort_stats('tottime')
-    #stats.print_stats()
+    #nes_main()
+    nes_main_profile()
