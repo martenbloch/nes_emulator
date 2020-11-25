@@ -1,6 +1,7 @@
 from src.cpu import frame
 import random
-
+import numpy as np
+import pygame
 
 class OamData:
     def __init__(self):
@@ -106,6 +107,7 @@ class Ppu:
         self.vram_addr = 0x0000
 
         self.palette = [(0, 0, 0)] * 64
+        '''
         self.palette[0x00] = (84, 84, 84)
         self.palette[0x01] = (0, 30, 116)
         self.palette[0x02] = (8, 16, 144)
@@ -173,6 +175,76 @@ class Ppu:
         self.palette[0x3D] = (160, 162, 160)
         self.palette[0x3E] = (0, 0, 0)
         self.palette[0x3F] = (0, 0, 0)
+        '''
+
+        self.palette[0x00] = 0x545454
+        self.palette[0x01] = 0x001E74
+        self.palette[0x02] = 0x081090
+        self.palette[0x03] = 0x300088
+        self.palette[0x04] = 0x440064
+        self.palette[0x05] = 0x5C0030
+        self.palette[0x06] = 0x540400
+        self.palette[0x07] = 0x3C1800
+        self.palette[0x08] = 0x202A00
+        self.palette[0x09] = 0x083A00
+        self.palette[0x0A] = 0x004000
+        self.palette[0x0B] = 0x003C00
+        self.palette[0x0C] = 0x00323C
+        self.palette[0x0D] = 0x000000
+        self.palette[0x0E] = 0x000000
+        self.palette[0x0F] = 0x000000
+        self.palette[0x10] = 0x989698
+        self.palette[0x11] = 0x084CC4
+        self.palette[0x12] = 0x3032EC
+        self.palette[0x13] = 0x5C1EE4
+        self.palette[0x14] = 0x8814B0
+        self.palette[0x15] = 0xA01464
+        self.palette[0x16] = 0x982220
+        self.palette[0x17] = 0x783C00
+        self.palette[0x18] = 0x545A00
+        self.palette[0x19] = 0x287200
+        self.palette[0x1A] = 0x087C00
+        self.palette[0x1B] = 0x007628
+        self.palette[0x1C] = 0x006678
+        self.palette[0x1D] = 0x000000
+        self.palette[0x1E] = 0x000000
+        self.palette[0x1F] = 0x000000
+        self.palette[0x20] = 0xECEEEC
+        self.palette[0x21] = 0x4C9AEC
+        self.palette[0x22] = 0x787CEC
+        self.palette[0x23] = 0xB062EC
+        self.palette[0x24] = 0xE454EC
+        self.palette[0x25] = 0xEC58B4
+        self.palette[0x26] = 0xEC6A64
+        self.palette[0x27] = 0xD48820
+        self.palette[0x28] = 0xA0AA00
+        self.palette[0x29] = 0x74C400
+        self.palette[0x2A] = 0x4CD020
+        self.palette[0x2B] = 0x38CC6C
+        self.palette[0x2C] = 0x38B4CC
+        self.palette[0x2D] = 0x3C3C3C
+        self.palette[0x2E] = 0x000000
+        self.palette[0x2F] = 0x000000
+        self.palette[0x30] = 0xECEEEC
+        self.palette[0x31] = 0xA8CCEC
+        self.palette[0x32] = 0xBCBCEC
+        self.palette[0x33] = 0xD4B2EC
+        self.palette[0x34] = 0xECAEEC
+        self.palette[0x35] = 0xECAED4
+        self.palette[0x36] = 0xECB4B0
+        self.palette[0x37] = 0xE4C490
+        self.palette[0x38] = 0xCCD278
+        self.palette[0x39] = 0xB4DE78
+        self.palette[0x3A] = 0xA8E290
+        self.palette[0x3B] = 0x98E2B4
+        self.palette[0x3C] = 0xA0D6E4
+        self.palette[0x3D] = 0xA0A2A0
+        self.palette[0x3E] = 0x000000
+        self.palette[0x3F] = 0x000000
+
+        #for i in range(len(self.palette)):
+        #    c = self.palette[i]
+        #    print("self.palette[0x{:02X}] = 0x{:06X}".format(i, c[0] << 16 | c[1] << 8 | c[2]))
 
         self.shiftRegister1 = ShiftRegister(16)
         self.shiftRegister2 = ShiftRegister(16)
@@ -223,6 +295,11 @@ class Ppu:
 
         self.num_secondary_sprites = 0
 
+        self.pallete_base_address = 0x3F00
+
+        #self.th = tile_helper.TileHelper(0x0000, 0x0000)
+        self.screen_data = [0 for i in range(256*240)]
+
     def clear_secondary_oam(self):
         self.secondary_oam = [OamData() for i in range(8)]
 
@@ -257,8 +334,11 @@ class Ppu:
 
                 priority = (self.secondary_oam_attr_bytes[i] & 0x20) >> 5
 
+                #print("x:{}  y:{}  c:{} idx:{} p:{}".format((self.cycle - 1), self.scanline, color, idx, priority))
                 if priority == 0 and color != 0:
-                    self.frame.set_pixel(self.cycle - 1, self.scanline, self.palette[idx])
+                    #self.frame.set_pixel(self.cycle - 1, self.scanline, self.palette[idx])
+                    #print("put pixel")
+                    self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
                 self.secondary_oam_num_pixel_to_draw[i] -= 1
 
                 if not self.sprite_zero_hit and i == 0 and color != 0 and self.bg_pixel != 0:
@@ -273,12 +353,29 @@ class Ppu:
                 half = 1
 
             low, upper = self.cardridge.get_tile_data(sprite.tile_num, row, half)
+
+            #if sprite.tile_num != 255:
+                #print("half:{} tile_num:{} row:{} l:{} u:{}".format(half, sprite.tile_num, row, low, upper))
+
             if sprite.flip_horizontally():
                 low = int('{:08b}'.format(low)[::-1], 2)
                 upper = int('{:08b}'.format(upper)[::-1], 2)
 
             self.secondary_oam_l[i] = ShiftRegister(8, low)
             self.secondary_oam_h[i] = ShiftRegister(8, upper)
+
+    def read_palette_ram(self, address):
+        address &= 0x001F
+        if address == 0x0010:
+            address = 0x0000
+        elif address == 0x0014:
+            address = 0x0004
+        elif address == 0x0018:
+            address = 0x0008
+        elif address == 0x001C:
+            address = 0x000C
+
+        return self.palette_ram[address & 0xff]
 
     def read_video_mem(self, address):
         if 0x2000 <= address <= 0x3eff:
@@ -307,7 +404,8 @@ class Ppu:
             return self.palette_ram[address & 0xff]
 
         elif 0 <= address <= 0x1fff:
-            return self.cardridge.chr[self.vram_addr]
+            return self.cardridge.chr[address]
+            #return self.cardridge.chr[self.vram_addr]
         else:
             raise NotImplementedError("video ram read for address:{:X}".format(address))
         return
@@ -326,6 +424,16 @@ class Ppu:
             attr_data = attr_data >> 2
         attr_data = attr_data & 0x03
         self.pallete_idx = attr_data
+
+    def tile_row_to_pixels(self, lower, upper, palette_idx):
+        palette_address = 0x3F00 + (palette_idx << 2)
+
+        lower = np.unpackbits(np.array(lower, dtype=np.uint8))
+        upper = np.unpackbits(np.array(upper, dtype=np.uint8))
+
+        s = np.add(lower, upper) #+ palette_address
+        pixels = [self.palette[el] for el in s]
+        return pixels
 
     def clock(self):
 
@@ -358,6 +466,8 @@ class Ppu:
                 l = (l1 << 8) | l2
                 u = (u1 << 8) | u2
 
+                #self.th.writeLower((l1 << 8) | l2)
+                #self.th.writeUpper((u1 << 8) | u2)
                 self.shiftRegister1.write(l)
                 self.shiftRegister1.write(u)
 
@@ -387,6 +497,7 @@ class Ppu:
                             attr_data >>= 2
                         attr_data &= 0x03
                         self.pallete_idx = attr_data
+                        self.pallete_base_address = 0x3F00 + (self.pallete_idx << 2)
 
                     # performcne improvement, read tile data at once
                     #elif self.cycle % 8 == 6:
@@ -402,6 +513,8 @@ class Ppu:
 
                     elif r == 1 and self.cycle > 1:
                         #pass
+                        #self.th.writeLowerL(self.next_tile_low)
+                        #self.th.writeUpperL(self.next_tile_high)
                         v = (self.shiftRegister1.read() & 0xFF00) | self.next_tile_low
                         self.shiftRegister1.write(v)
                         v = (self.shiftRegister2.read() & 0xFF00) | self.next_tile_high
@@ -410,8 +523,12 @@ class Ppu:
                 if 1 <= self.cycle <= 256:
                     #pass
                     self.bg_pixel = self.shiftRegister1.shift() | (self.shiftRegister2.shift() << 1)
+                    #self.bg_pixel = self.th.shift()
                     idx = (self.read_video_mem(0x3F00 + (self.pallete_idx << 2) + self.bg_pixel)) & 0x3f
+                    #idx = (self.read_palette_ram(self.pallete_base_address + self.bg_pixel))
                     self.frame.set_pixel(self.cycle - 1, self.scanline, self.palette[idx])
+                    self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
+                    j=3
 
                 if self.cycle == 256:
                     self.cur_addr.increment_tile_y()
@@ -444,8 +561,15 @@ class Ppu:
             if self.scanline == 261:
                 self.scanline = -1
                 self.is_odd = not self.is_odd
-                if self.render_background:
-                    self.screen.update(self.frame)
+                #if self.render_background:
+                #    self.screen.update(self.screen_data)
+
+                    #p1 = pygame.PixelArray(self.frame.get_surface())
+
+                    #a = np.array(self.screen_data).reshape(256, 240)
+                    #b = pygame.surfarray.make_surface(a)
+                    #p2 = pygame.PixelArray(b)
+                    #c=5
 
     def read(self, address):
         if address == 0x2002:
@@ -541,11 +665,9 @@ class Ppu:
                 # print("VRAM INC by 1")
 
             if data & 0x10:
-                # print(" Background pattern table 0x1000")
                 self.background_half = 1
             else:
                 self.background_half = 0
-                # print(" Background pattern table 0x0000")
 
             return
         elif address == 0x2001:

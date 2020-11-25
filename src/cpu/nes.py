@@ -5,8 +5,8 @@ import pygame
 import cProfile
 import pstats
 import re
-
-
+import ppu_cpp
+import numpy as np
 
 
 class Nes:
@@ -26,8 +26,9 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/read_joy3/test_buttons.nes")
 
         #self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
-
-        self.ppu = ppu.Ppu(screen, self.cartridge)
+        self.screen = screen
+        #self.ppu = ppu.Ppu(screen, self.cartridge)
+        self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()
@@ -111,7 +112,12 @@ class Nes:
                 #fh.close()
                 self.ppu.raise_nmi = False
                 #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
-                self.ppu.cycle += 21
+                #self.ppu.cycle += 21
+
+                #self.screen.update(self.ppu.get_frame_data())
+                #self.screen.update(self.ppu.screen_data)
+                if self.ppu.render_background:
+                    self.screen.update(self.ppu.screen_data)
 
             self.num_of_cycles += 1
 
@@ -126,15 +132,14 @@ class Nes:
 class Screen:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((256*4, 240*4))
-        pygame.display.update()
+        self.screen = pygame.display.set_mode((256*4, 240*4))   # return surface
 
-    def update(self, frame):
-        d = frame.get_data()
-        for x in range(341):
-            for y in range(262):
-                self.screen.fill(d[x][y], ((x*4, y*4), (4, 4)))
-
+    def update(self, frameN):
+        a = np.transpose(np.array(frameN).reshape(240, 256))
+        surface = pygame.Surface((256, 240))
+        pygame.surfarray.blit_array(surface, a)
+        sc = pygame.transform.scale(surface, (256 * 4, 240 * 4))
+        self.screen.blit(sc, (0, 0))
         pygame.display.update()
 
 
@@ -160,3 +165,4 @@ if __name__ == "__main__":
 
     #nes_main()
     nes_main_profile()
+

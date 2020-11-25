@@ -1,6 +1,6 @@
 import pygame
 
-
+'''
 class Screen:
     def __init__(self):
         pygame.init()
@@ -14,3 +14,4 @@ class Screen:
                 self.screen.fill(d[x][y], ((x, y), (2, 2)))
 
         pygame.display.update()
+'''

@@ -703,6 +703,8 @@ class Cpu:
             self.new_instruction = True
             log_msg = ""
             cpu_state_before = ""
+            if self.pc == 0xc2e9:
+                x=3
 
             instruction = self.read(self.pc)
 
@@ -719,10 +721,10 @@ class Cpu:
             if self.enable_print:
                 log_msg += ascii(self.instructions[instruction])
                 log_msg += cpu_state_before
-                #print(log_msg.upper())
-                fh = open("log.txt", "a")
-                fh.write(log_msg)
-                fh.close()
+                print(log_msg)
+                #fh = open("log.txt", "a")
+                #fh.write(log_msg)
+                #fh.close()
 
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
         else:
