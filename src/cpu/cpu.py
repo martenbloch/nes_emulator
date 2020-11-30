@@ -48,7 +48,7 @@ class Bus:
         self.__devices.append(device)
 
 
-LOG_WIDTH = 38
+LOG_WIDTH = 32
 
 
 class Cpu:
@@ -687,30 +687,28 @@ class Cpu:
 
     def to_str(self):
         #return "A:{} X:{} Y:{} P:{} SP:{}".format(self.to_hex(self.a), self.to_hex(self.x), self.to_hex(self.y), self.to_hex(self.sr.to_byte()), self.to_hex(self.sp))
-        return "A:{:X} X:{:X} Y:{:X} P:{:X} SP:{:X}".format(self.a, self.x, self.y, self.sr.to_byte(), self.sp)
+        return "A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}".format(self.a, self.x, self.y, self.sr.to_byte(), self.sp)
 
-    def inst_as_bytes(self, instruction_size):
+    def inst_as_bytes(self, pc, instruction_size):
         #s = ""
-        b = self.read_many(instruction_size)
+        b = self.read_many(pc, instruction_size)
         #s = (len(b) * "{:02X} ").format(*b)
         #for i in range(instruction_size):
         #    s += "${:X} ".format(self.read(self.pc + i))
         #return s.ljust(12, " ")
-        return ((len(b) * "{:02X} ").format(*b)).ljust(12, " ")
+        return ((len(b) * "${:02X} ").format(*b)).ljust(12, " ")
 
     def clock(self):
         if self.cycles_left_to_perform_current_instruction == 0:
             self.new_instruction = True
             log_msg = ""
             cpu_state_before = ""
-            if self.pc == 0xc2e9:
-                x=3
 
             instruction = self.read(self.pc)
 
-            if self.enable_print:
+            if True:#self.enable_print:
                 log_msg += "{:04X} ".format(self.pc)
-                log_msg += self.inst_as_bytes(self.instructions[instruction].size())
+                log_msg += self.inst_as_bytes(self.pc, self.instructions[instruction].size())
                 cpu_state_before = self.to_str()
                 ppu = self.bus.get_device_by_address(0x2000)
                 cpu_state_before += "\r\n"
@@ -718,13 +716,13 @@ class Cpu:
 
             self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
 
-            if self.enable_print:
+            if True:#self.enable_print:
                 log_msg += ascii(self.instructions[instruction])
                 log_msg += cpu_state_before
-                print(log_msg)
-                #fh = open("log.txt", "a")
-                #fh.write(log_msg)
-                #fh.close()
+                #print(log_msg)
+                fh = open("log.txt", "a")
+                fh.write(log_msg)
+                fh.close()
 
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
         else:
@@ -763,7 +761,7 @@ class Cpu:
 
         self.a = 0x90
         self.x = 0x05
-        self.y = 0x02
+        self.y = 0xFC
         self.sp = 0xFC    # end of stack
 
         self.sr = StatusRegister()
@@ -2744,7 +2742,7 @@ class Tya:
         return self.addressMode.size
 
     def __repr__(self):
-        return "TYA {}".format(self.addressMode)
+        return "TYA".ljust(LOG_WIDTH, ' ')
 
 # ------------------------------------------------------------------------------
 #                            ADDRESSING MODES
@@ -2791,7 +2789,7 @@ class AddressModeAbsolute:
         return self.abs_address
 
     def __repr__(self):
-        return "${:04X} = ".format(self.abs_address)
+        return "${:04X}".format(self.abs_address)
 
 
 class AddressModeAbsoluteXIndexed:
@@ -2830,7 +2828,7 @@ class AddressModeAbsoluteXIndexed:
     def __repr__(self):
         base_addr = (self.hh << 8) | self.ll
         abs_addr = base_addr + self.cpu.x
-        return "${:X},X @ ${:04X} = ".format(base_addr, abs_addr)
+        return "${:04X},X @ ${:04X}".format(base_addr, abs_addr)
 
 
 class AddressModeAbsoluteYIndexed:
@@ -2868,7 +2866,7 @@ class AddressModeAbsoluteYIndexed:
     def __repr__(self):
         base_addr = ((self.hh << 8) | self.ll)
         addr = base_addr + self.cpu.y
-        return "${},Y @ ${} = ".format(to_str_hex(base_addr, 4), to_str_hex(addr, 4))
+        return "${:04X},Y @ ${:04X}".format(base_addr, addr)
 
 
 class AddressModeImmediate:
@@ -2896,7 +2894,7 @@ class AddressModeImmediate:
         return "${}".format(to_str_hex(self.cpu.read(self.addr))).ljust(8, " ")
 
     def __repr__(self):
-        return "#"
+        return "#${:02X}".format(self.cpu.read(self.addr))
 
 
 class AddressModeImplied:
@@ -2948,7 +2946,7 @@ class AddressModeIndirect:
     #    return "${} ${} ".format(to_str_hex(self.ll), to_str_hex(self.hh))
 
     def __repr__(self):
-        return "(${}) @ ${} = ".format(to_str_hex(self.ptr, 4), to_str_hex(self.addr, 4))
+        return "(${:04X}) @ ${:04X}".format(self.ptr, self.addr)
 
 
 class AddressModeIndirectX:
@@ -3009,7 +3007,7 @@ class AddressModeIndirectY:
     #    return "${} ".format(to_str_hex(self.ll))
 
     def __repr__(self):
-        return "(${}),Y @ ${} = ".format(to_str_hex(self.ll, 4), to_str_hex(self.addr, 4))
+        return "(${:04X}),Y @ ${:04X}".format(self.ll, self.addr)
 
 
 class AddressModeRelative:
@@ -3062,8 +3060,9 @@ class AddressModeRelative:
         return "${} ".format(to_str_hex(self.data))
 
     def __repr__(self):
-        return "${} = ".format(to_str_hex(self.addr, 4))
+        return "${:04X}".format(self.addr)
         #return "${}".format(to_str_hex(self.addr, 4)) #NESDEV
+
 
 class AddressModeZeroPage:
 
@@ -3096,7 +3095,7 @@ class AddressModeZeroPage:
     #    return "${} ".format(to_str_hex(self.address))
 
     def __repr__(self):
-        return "${} = ".format(to_str_hex(self.address, 4))
+        return "${:04X}".format(self.address)
         #return "${} = ".format(to_str_hex(self.address, 2))
         #return "${}".format(to_str_hex(self.address, 4))
 
@@ -3124,7 +3123,7 @@ class AddressModeZeroPageXIndexed:
         return addr
 
     def __repr__(self):
-        return "{},X".format(hex(self.ll))
+        return "{:04X},X @ ${:02X}".format(self.ll, self.ll)
 
 
 class AddressModeZeroPageYIndexed:
@@ -3146,7 +3145,7 @@ class AddressModeZeroPageYIndexed:
         return addr
 
     def __repr__(self):
-        return "{},Y".format(hex(self.ll))
+        return "{:04X},Y @ ${:02X}".format(self.ll, self.ll)
 
 
 def hex_to_signed_int(v):

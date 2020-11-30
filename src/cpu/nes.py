@@ -70,8 +70,8 @@ class Nes:
 
     def start(self):
         i=0
-        #while True:
-        while i < 8000000:
+        while True:
+        #while i < 8000000:
             self.ppu.clock()
             if self.num_of_cycles % 3 == 0:
                 if self.bus.dma_request:
@@ -107,9 +107,9 @@ class Nes:
             if self.ppu.raise_nmi and self.c.new_instruction:
                 #print("NMI request cyc:{}".format(self.c.clock_ticks))
                 self.c.nmi()
-                #fh = open("log.txt", "a")
-                #fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
-                #fh.close()
+                fh = open("log.txt", "a")
+                fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
+                fh.close()
                 self.ppu.raise_nmi = False
                 #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
                 #self.ppu.cycle += 21
@@ -163,6 +163,6 @@ def nes_main_profile():
 if __name__ == "__main__":
     print("NES emulator")
 
-    #nes_main()
-    nes_main_profile()
+    nes_main()
+    #nes_main_profile()
 
