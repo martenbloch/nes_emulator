@@ -706,7 +706,7 @@ class Cpu:
 
             instruction = self.read(self.pc)
 
-            if True:#self.enable_print:
+            if self.enable_print:
                 log_msg += "{:04X} ".format(self.pc)
                 log_msg += self.inst_as_bytes(self.pc, self.instructions[instruction].size())
                 cpu_state_before = self.to_str()
@@ -716,7 +716,7 @@ class Cpu:
 
             self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
 
-            if True:#self.enable_print:
+            if self.enable_print:
                 log_msg += ascii(self.instructions[instruction])
                 log_msg += cpu_state_before
                 #print(log_msg)
@@ -1063,6 +1063,8 @@ class And:
 
         if self.cpu.a == 0:
             self.cpu.sr.z = 1
+        else:
+            self.cpu.sr.z = 0
 
         self.cpu.sr.n = (self.cpu.a & 0x80) >> 7
         return self.addressMode.cycles
@@ -2391,21 +2393,42 @@ class Sbc:
         if (self.cpu.a & 0x80) == 0 and (operand & 0x80) > 0:
             tmp -= 1
 
+        """
+        OLD
         if self.cpu.a == operand:
             self.cpu.sr.z = 1
             tmp = 0
+        else:
+            self.cpu.sr.z = 0
+        """
+        if res == 0:
+            self.cpu.sr.z = 1
         else:
             self.cpu.sr.z = 0
 
         self.cpu.sr.n = (tmp & 0x80) >> 7
 
         self.cpu.sr.v = 0
-        self.cpu.sr.c = 1
-        if (self.cpu.a & 0x80) == 0 and (operand & 0x80) == 0 and (self.cpu.a < operand):
+
+        sig_a = hex_to_signed_int(self.cpu.a)
+        sig_o = hex_to_signed_int(operand)
+
+
+        if (self.cpu.a > operand) or (self.cpu.a == operand and self.cpu.sr.c == 1):
+            self.cpu.sr.c = 1
+        elif self.cpu.a < operand:
+            self.cpu.sr.c = 0
+        elif self.cpu.a == operand and self.cpu.sr.c == 0:
             self.cpu.sr.c = 0
 
-        if (self.cpu.a & 0x80) > 0 and (operand & 0x80) > 0 and (self.cpu.a > operand):
+        """
+        self.cpu.sr.c = 1
+        if (self.cpu.a & 0x80) == 0 and (operand & 0x80) == 0 and (self.cpu.a < operand):   # old (self.cpu.a < operand)
             self.cpu.sr.c = 0
+
+        if (self.cpu.a & 0x80) > 0 and (operand & 0x80) > 0 and (self.cpu.a > operand):     # old (self.cpu.a > operand)
+            self.cpu.sr.c = 0
+        """
 
         if (self.cpu.a & 0x80) == 0 and (operand & 0x80) == 0 and (self.cpu.a < operand) and operand - self.cpu.a > 0x7F:
             self.cpu.sr.v = 1
@@ -3108,6 +3131,7 @@ class AddressModeZeroPageXIndexed:
         self.ll = 0
         self.cycles = cycles
         self.size = 2
+        self.addr = 0x0000
 
     def fetch(self):
         return self.cpu.read(self.get_address())
@@ -3118,12 +3142,12 @@ class AddressModeZeroPageXIndexed:
     def get_address(self):
         self.ll = self.cpu.read(self.cpu.pc)
         self.cpu.pc += 1
-        addr = self.ll + self.cpu.x
-        addr &= 0x00FF
-        return addr
+        self.addr = self.ll + self.cpu.x
+        self.addr &= 0x00FF
+        return self.addr
 
     def __repr__(self):
-        return "{:04X},X @ ${:02X}".format(self.ll, self.ll)
+        return "${:04X},X @ ${:02X}".format(self.ll, self.addr)
 
 
 class AddressModeZeroPageYIndexed:
@@ -3133,6 +3157,7 @@ class AddressModeZeroPageYIndexed:
         self.ll = 0
         self.cycles = 4
         self.size = 2
+        self.addr = 0x0000
 
     def fetch(self):
         return self.cpu.read(self.get_address())
@@ -3140,12 +3165,12 @@ class AddressModeZeroPageYIndexed:
     def get_address(self):
         self.ll = self.cpu.read(self.cpu.pc)
         self.cpu.pc += 1
-        addr = self.ll + self.cpu.y
-        addr &= 0x00FF
-        return addr
+        self.addr = self.ll + self.cpu.y
+        self.addr &= 0x00FF
+        return self.addr
 
     def __repr__(self):
-        return "{:04X},Y @ ${:02X}".format(self.ll, self.ll)
+        return "{:04X},Y @ ${:02X}".format(self.ll, self.addr)
 
 
 def hex_to_signed_int(v):
@@ -3156,11 +3181,15 @@ def hex_to_signed_int(v):
 
 
 def signed_int_to_hex(v):
-    if v & 0x80:
-        v *= -1
-        return (~ v + 1) & 0xff
+    if v < 0:
+        return (v & (2**32-1)) & 0xff
     else:
         return v
+    #if v & 0x80:
+    #    v *= -1
+    #    return (~ v + 1) & 0xff
+    #else:
+    #    return v
 
 
 def to_str_hex(val, num_fields=2):

@@ -107,9 +107,9 @@ class Nes:
             if self.ppu.raise_nmi and self.c.new_instruction:
                 #print("NMI request cyc:{}".format(self.c.clock_ticks))
                 self.c.nmi()
-                fh = open("log.txt", "a")
-                fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
-                fh.close()
+                #fh = open("log.txt", "a")
+                #fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
+                #fh.close()
                 self.ppu.raise_nmi = False
                 #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
                 #self.ppu.cycle += 21
