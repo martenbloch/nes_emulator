@@ -888,6 +888,8 @@ class Apu:
         self.btn_select = False
         self.btn_left = False
         self.btn_right = False
+        self.btn_a = False
+        self.btn_b = False
 
     def read(self, address):
         if address == 0x4016:
@@ -911,6 +913,12 @@ class Apu:
                 elif self.cnt == 2 and self.btn_select:
                     d = 0x41
                     self.btn_select = False
+                elif self.cnt == 1 and self.btn_b:
+                    d = 0x41
+                    self.btn_b = False
+                elif self.cnt == 0 and self.btn_a:
+                    d = 0x41
+                    self.btn_a = False
                 elif self.cnt > 7:
                     d = 0x40
 
@@ -936,6 +944,10 @@ class Apu:
                     self.pressed_start()
                 elif event.key == pygame.K_1:
                     self.select_pressed()
+                elif event.key == pygame.K_a:
+                    self.btn_a = True
+                elif event.key == pygame.K_s:
+                    self.btn_b = True
 
     def write(self, address, data):
         if address == 0x4016:
