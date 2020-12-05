@@ -897,16 +897,16 @@ class Apu:
             if self.read_button:
                 if self.cnt == 7 and self.btn_right:
                     d = 0x41
-                    self.btn_right = False
+                    #self.btn_right = False
                 elif self.cnt == 6 and self.btn_left:
                     d = 0x41
-                    self.btn_left = False
+                    #self.btn_left = False
                 elif self.cnt == 5 and self.btn_down:
                     d = 0x41
-                    self.btn_down = False
+                    #self.btn_down = False
                 elif self.cnt == 4 and self.btn_up:
                     d = 0x43
-                    self.btn_up = False
+                    #self.btn_up = False
                 elif self.cnt == 3 and self.btn_start:
                     d = 0x41
                     self.btn_start = False
@@ -915,10 +915,10 @@ class Apu:
                     self.btn_select = False
                 elif self.cnt == 1 and self.btn_b:
                     d = 0x41
-                    self.btn_b = False
+                    #self.btn_b = False
                 elif self.cnt == 0 and self.btn_a:
                     d = 0x41
-                    self.btn_a = False
+                    #self.btn_a = False
                 elif self.cnt > 7:
                     d = 0x40
 
@@ -948,6 +948,25 @@ class Apu:
                     self.btn_a = True
                 elif event.key == pygame.K_s:
                     self.btn_b = True
+
+        for event in pygame.event.get(pygame.KEYUP):
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_UP:
+                    #self.pressed_up()
+                    self.btn_up = False
+                elif event.key == pygame.K_DOWN:
+                    #self.pressed_down()
+                    self.btn_down = False
+                elif event.key == pygame.K_LEFT:
+                    #self.pressed_left()
+                    self.btn_left = False
+                elif event.key == pygame.K_RIGHT:
+                    #self.pressed_right()
+                    self.btn_right = False
+                elif event.key == pygame.K_a:
+                    self.btn_a = False
+                elif event.key == pygame.K_s:
+                    self.btn_b = False
 
     def write(self, address, data):
         if address == 0x4016:
@@ -1212,6 +1231,8 @@ class Bit:
         self.cpu.sr.v = (operand >> 6) & 0x1
         if operand & self.cpu.a == 0:
             self.cpu.sr.z = 1
+        else:
+            self.cpu.sr.z = 0
 
         return self.addressMode.cycles
 
