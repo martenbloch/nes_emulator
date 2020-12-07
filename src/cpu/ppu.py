@@ -300,6 +300,11 @@ class Ppu:
         #self.th = tile_helper.TileHelper(0x0000, 0x0000)
         self.screen_data = [0 for i in range(256*240)]
 
+        self.bg_next_tile_attrib = 0x00
+
+        self.attr_low = ShiftRegister(16)
+        self.attr_high = ShiftRegister(16)
+
     def clear_secondary_oam(self):
         self.secondary_oam = [OamData() for i in range(8)]
 
@@ -334,11 +339,16 @@ class Ppu:
 
                 priority = (self.secondary_oam_attr_bytes[i] & 0x20) >> 5
 
-                #print("x:{}  y:{}  c:{} idx:{} p:{}".format((self.cycle - 1), self.scanline, color, idx, priority))
-                if priority == 0 and color != 0:
-                    #self.frame.set_pixel(self.cycle - 1, self.scanline, self.palette[idx])
-                    #print("put pixel")
+                if self.bg_pixel == 0 and color == 0:
+                    idx = (self.read_video_mem(0x3F00) & 0x3f)
                     self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
+                elif self.bg_pixel == 0 and color != 0:
+                    self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
+                elif color == 0:
+                    pass
+                elif self.bg_pixel != 0 and color != 0 and priority == 0:
+                    self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
+
                 self.secondary_oam_num_pixel_to_draw[i] -= 1
 
                 if not self.sprite_zero_hit and i == 0 and color != 0 and self.bg_pixel != 0:
@@ -391,7 +401,12 @@ class Ppu:
                 elif 0x2400 <= address <= 0x27ff or 0x2c00 <= address <= 0x2fff:
                     return self.name_table_1[index]
         elif 0x3f00 <= address <= 0x3fff:
+            if address == 0x3f04 or address == 0x3F08 or address == 0x3F0C:
+                address = 0x3f00
+
             address &= 0x001F
+
+            """
             if address == 0x0010:
                 address = 0x0000
             elif address == 0x0014:
@@ -400,7 +415,7 @@ class Ppu:
                 address = 0x0008
             elif address == 0x001C:
                 address = 0x000C
-
+            """
             return self.palette_ram[address & 0xff]
 
         elif 0 <= address <= 0x1fff:
@@ -499,6 +514,8 @@ class Ppu:
                         self.pallete_idx = attr_data
                         self.pallete_base_address = 0x3F00 + (self.pallete_idx << 2)
 
+                        self.bg_next_tile_attrib = attr_data
+
                     # performcne improvement, read tile data at once
                     #elif self.cycle % 8 == 6:
                     #    self.next_tile_low, u1 = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
@@ -509,6 +526,8 @@ class Ppu:
                         self.next_tile_low, self.next_tile_high = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
                                                                                self.background_half)
 
+                        #if self.next_tile_id == 36:
+                        #    print("l:{:02X} u:{:02X}".format(self.next_tile_low, self.next_tile_high))
                         self.cur_addr.increment_tile_x()
 
                     elif r == 1 and self.cycle > 1:
@@ -520,10 +539,25 @@ class Ppu:
                         v = (self.shiftRegister2.read() & 0xFF00) | self.next_tile_high
                         self.shiftRegister2.write(v)
 
+                        low = 0x00
+                        if self.bg_next_tile_attrib & 0x01:
+                            low = 0xff
+                        upper = 0x00
+                        if self.bg_next_tile_attrib & 0x02:
+                            upper = 0xff
+
+                        v = (self.attr_low.read() & 0xFF00) | low
+                        self.attr_low.write(v)
+                        v = (self.attr_high.read() & 0xFF00) | upper
+                        self.attr_high.write(v)
+
                 if 1 <= self.cycle <= 256:
                     #pass
                     self.bg_pixel = self.shiftRegister1.shift() | (self.shiftRegister2.shift() << 1)
                     #self.bg_pixel = self.th.shift()
+
+                    self.pallete_idx = self.attr_low.shift() | (self.attr_high.shift() << 1)
+
                     idx = (self.read_video_mem(0x3F00 + (self.pallete_idx << 2) + self.bg_pixel)) & 0x3f
                     #idx = (self.read_palette_ram(self.pallete_base_address + self.bg_pixel))
                     self.frame.set_pixel(self.cycle - 1, self.scanline, self.palette[idx])

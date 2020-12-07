@@ -27,8 +27,8 @@ class Nes:
 
         #self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
         self.screen = screen
-        #self.ppu = ppu.Ppu(screen, self.cartridge)
-        self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
+        self.ppu = ppu.Ppu(screen, self.cartridge)
+        #self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()
@@ -106,6 +106,8 @@ class Nes:
 
             if self.ppu.raise_nmi and self.c.new_instruction:
                 #print("NMI request cyc:{}".format(self.c.clock_ticks))
+                if self.c.clock_ticks == 1010347:
+                    j=3
                 self.c.nmi()
                 #fh = open("log.txt", "a")
                 #fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
