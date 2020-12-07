@@ -406,16 +406,6 @@ class Ppu:
 
             address &= 0x001F
 
-            """
-            if address == 0x0010:
-                address = 0x0000
-            elif address == 0x0014:
-                address = 0x0004
-            elif address == 0x0018:
-                address = 0x0008
-            elif address == 0x001C:
-                address = 0x000C
-            """
             return self.palette_ram[address & 0xff]
 
         elif 0 <= address <= 0x1fff:
@@ -522,18 +512,12 @@ class Ppu:
                     #                                                          self.background_half)
 
                     elif r == 0:
-                        #pass
                         self.next_tile_low, self.next_tile_high = self.cardridge.get_tile_data(self.next_tile_id, self.cur_addr.fine_y,
                                                                                self.background_half)
 
-                        #if self.next_tile_id == 36:
-                        #    print("l:{:02X} u:{:02X}".format(self.next_tile_low, self.next_tile_high))
                         self.cur_addr.increment_tile_x()
 
                     elif r == 1 and self.cycle > 1:
-                        #pass
-                        #self.th.writeLowerL(self.next_tile_low)
-                        #self.th.writeUpperL(self.next_tile_high)
                         v = (self.shiftRegister1.read() & 0xFF00) | self.next_tile_low
                         self.shiftRegister1.write(v)
                         v = (self.shiftRegister2.read() & 0xFF00) | self.next_tile_high
@@ -552,23 +536,17 @@ class Ppu:
                         self.attr_high.write(v)
 
                 if 1 <= self.cycle <= 256:
-                    #pass
                     self.bg_pixel = self.shiftRegister1.shift() | (self.shiftRegister2.shift() << 1)
-                    #self.bg_pixel = self.th.shift()
-
                     self.pallete_idx = self.attr_low.shift() | (self.attr_high.shift() << 1)
-
                     idx = (self.read_video_mem(0x3F00 + (self.pallete_idx << 2) + self.bg_pixel)) & 0x3f
-                    #idx = (self.read_palette_ram(self.pallete_base_address + self.bg_pixel))
-                    self.frame.set_pixel(self.cycle - 1, self.scanline, self.palette[idx])
                     self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
-                    j=3
 
                 if self.cycle == 256:
                     self.cur_addr.increment_tile_y()
                 elif self.cycle == 257:
                     self.cur_addr.base_name_table = self.tmp_addr.base_name_table
                     self.cur_addr.tile_x = self.tmp_addr.tile_x
+                    #print("set tileX to: {}".format(self.cur_addr.tile_x))
 
             # ------------------------------sprite rendering------------------------------
             if self.show_sprite:
@@ -844,9 +822,12 @@ class VramRegister:
         return self.vram_addr
 
     def increment_tile_x(self):
+        #print("inc tileX:{} vrmaAddr:{:04X}".format(self.tile_x, self.get_vram_address()))
         if self.tile_x == 31:
             self.tile_x = 0
-            self.vram_addr ^= 0x400
+            #self.vram_addr ^= 0x400
+            self.base_name_table ^= 0x400
+            #print("switch nt: {:04X}".format(self.vram_addr))
         else:
             self.tile_x += 1
             self.vram_addr += 1

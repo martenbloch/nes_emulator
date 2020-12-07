@@ -60,7 +60,7 @@ void VramRegister::incrementTileX()
     if(tileX == 31)
     {
         tileX = 0;
-        vramAddr ^= 0x400;
+        baseNameTable ^= 0x400;
     }
     else
     {
@@ -79,7 +79,7 @@ void VramRegister::incrementTileY()
         if(tileY == 29)
         {
             tileY = 0;
-            vramAddr ^= 0x800;
+            baseNameTable ^= 0x800;
         }
         else
             tileY += 1;
