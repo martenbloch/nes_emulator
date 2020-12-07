@@ -167,7 +167,9 @@ Ppu::Ppu(uint8_t* patternTableData, uint16_t len, uint8_t mirroring)
  m_secondaryOamNumPixelToDraw{{8, 8, 8, 8, 8, 8, 8, 8}},
  m_secondaryOamXCounter{{0, 0, 0, 0, 0, 0, 0, 0}},
  m_secondaryOamAttrBytes{{8, 8, 8, 8, 8, 8, 8, 8}},
- m_sh{TileHelper(0x0000,0x0000), TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000)}
+ m_sh{TileHelper(0x0000,0x0000), TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000)},
+ m_nextAttribDataH{0x0000, 0x0000},
+ m_nextAttribData{0x00}
 {
     m_chr.assign(patternTableData, patternTableData + len);
 
@@ -330,15 +332,12 @@ uint8_t Ppu::readVideoMem(uint16_t address)
     } 
     else if(address >= 0x3f00 && address <= 0x3fff) 
     {
+        if(address == 0x3f04 || address == 0x3F08 || address == 0x3F0C)
+        {
+            address = 0x3f00;
+        }
+
         address &= 0x001F;
-        if(address == 0x0010)
-            address = 0x0000;
-        else if(address == 0x0014)
-            address = 0x0004;
-        else if(address == 0x0018)
-            address = 0x0008;
-        else if(address == 0x001C)
-            address = 0x000C;
 
         return m_paletteRam[address & 0xff]; // TODO: check it
 
@@ -408,20 +407,14 @@ void Ppu::decrementSpriteXCounters()
         if(m_secondaryOamXCounter[i] == 0 && m_secondaryOamNumPixelToDraw[i] > 0)
         {
             uint8_t color = m_sh[i].shift();
-            //b1 = self.secondary_oam_l[i].shift()
-            //b2 = self.secondary_oam_h[i].shift()
-            //color = b1 | (b2 << 1)
 
             uint8_t pallete_idx = m_secondaryOam[i].palette();
             uint8_t idx = (readVideoMem(0x3F10 + (pallete_idx << 2) + color)) & 0x3f;
 
             uint8_t priority = (m_secondaryOamAttrBytes[i] & 0x20) >> 5;
 
-
-            //std::cout << std::dec << "x:" << int(m_cycle-1) << "  y:" << m_scanline << "  c:" << int(color) << "  idx:" << int(idx) << "  p:" << int(priority) << std::endl;
             if(priority == 0 && color != 0)
-            {                
-                //std::cout << "put color" << std::endl;
+            {
                 m_frameData[(m_cycle - 1) + m_scanline*256] = m_palette[idx];
             }
             m_secondaryOamNumPixelToDraw[i] -= 1;
@@ -730,6 +723,7 @@ void Ppu::clock()
                     else if( m_currAddr.tileX & 0x02)
                         attrData >>= 2;
                     attrData &= 0x03;
+                    m_nextAttribData = attrData;
                     m_paletteIdx = attrData;
                     m_paletteBaseAddr = 0x3F00 + (m_paletteIdx << 2);
                 }
@@ -747,11 +741,15 @@ void Ppu::clock()
                 {
                     m_th.writeLowerL(m_nextTileData.lower);
                     m_th.writeUpperL(m_nextTileData.upper);
+
+                    m_nextAttribDataH.writeLowerL((m_nextAttribData & 0x1) ? 0xFF : 0x00);
+                    m_nextAttribDataH.writeUpperL((m_nextAttribData & 0x2) ? 0xFF : 0x00);
                 }
             }
             if(m_cycle >=1 && m_cycle <= 256)
             {
                 m_bgPixel = m_th.shift();
+                m_paletteIdx = m_nextAttribDataH.shift();
                 uint8_t idx = (readVideoMem(0x3F00 + (m_paletteIdx << 2) + m_bgPixel)) & 0x3f;
                 m_frameData[(m_cycle - 1) + m_scanline*256] = m_palette[idx];
             }

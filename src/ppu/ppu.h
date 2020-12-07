@@ -191,6 +191,9 @@ class Ppu
         std::array<uint8_t, 8> m_secondaryOamAttrBytes;
         std::array<TileHelper, 8> m_sh;
 
+        TileHelper m_nextAttribDataH;
+        uint8_t m_nextAttribData;
+
         uint8_t readVideoMem(uint16_t address);
         TileRow getTileData(uint8_t tileNum, uint8_t row, uint8_t half);
         void getPaletteIdx();
