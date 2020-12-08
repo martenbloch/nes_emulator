@@ -759,13 +759,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x90
-        self.x = 0x05
-        self.y = 0xFC
-        self.sp = 0xFC    # end of stack
+        self.a = 0x01
+        self.x = 0xF0
+        self.y = 0x02
+        self.sp = 0xF3    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x85)
+        self.sr.from_byte(0x05)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -811,6 +811,8 @@ class Cardrige:
 
         prg_size = data[4]
         chr_size = data[5]
+
+        print("prg:{}   chr:{}".format(prg_size, chr_size))
         flag6 = data[6]
         flag7 = data[7]
         self.mirroring = flag6 & 0x1    # 0-horizontal, 1-veritcal
@@ -836,20 +838,27 @@ class Cardrige:
         self.mapper = None
         if mapperId == 0:
             self.mapper = Mapper000(prg_size)
+        elif mapperId == 2:
+            self.mapper = Mapper002(prg_size)
+        elif mapperId == 71:
+            self.mapper = Mapper071(prg_size)
         else:
             raise NotImplementedError("unknown mapper id:{}".format(mapperId))
 
     def read(self, address, num_bytes=1):
         #mapped_addr = self.mapper.map_cpu_address(address)
         #return self.prg[mapped_addr:mapped_addr+num_bytes]
-        return self.prg[self.mapper.map_cpu_address(address)]
+        if self.mapper.map_cpu_read(address) > len(self.prg):
+            print("out of range addr:{:04X} mapped:{:04X}".format(address, self.mapper.map_cpu_read(address)))
+
+        return self.prg[self.mapper.map_cpu_read(address)]
 
     def read_many(self, address, num_bytes=1):
-        mapped_addr = self.mapper.map_cpu_address(address)
+        mapped_addr = self.mapper.map_cpu_read(address)
         return tuple(self.prg[mapped_addr:mapped_addr+num_bytes])
 
     def write(self, address, data):
-        self.prg[self.mapper.map_cpu_address(address)] = data
+        self.prg[self.mapper.map_cpu_write(address, data)] = data
 
     def is_address_valid(self, address):
         return self.start_addr <= address <= self.end_addr
@@ -867,11 +876,53 @@ class Mapper000:
     def __init__(self, prg_size):
         self.prg_size = prg_size
 
-    def map_cpu_address(self, addr):
+    def map_cpu_read(self, addr):
         if self.prg_size > 1:
             return addr & 0x7fff
         else:
             return addr & 0x3fff
+
+    def map_cpu_write(self, addr, data):
+        if self.prg_size > 1:
+            return addr & 0x7fff
+        else:
+            return addr & 0x3fff
+
+
+class Mapper002:
+    def __init__(self, num_banks):
+        self.selected_bank = 0
+        self.num_banks = num_banks
+
+    def map_cpu_read(self, addr):
+        if addr >= 0x8000 and addr <= 0xBFFF:
+            return (self.selected_bank * 0x4000) | (addr & 0x3fff)
+        elif addr >= 0xc000 and addr <= 0xffff:
+            return ((self.num_banks - 1) * 0x4000) | (addr & 0x3fff)
+        return addr & 0x3fff
+
+    def map_cpu_write(self, addr, data):
+        if addr >= 0x8000 and addr <= 0xffff:
+            self.selected_bank = data & 0x7
+        return addr
+
+
+class Mapper071:
+    def __init__(self, num_banks):
+        self.selected_bank = 0
+        self.num_banks = num_banks
+
+    def map_cpu_read(self, addr):
+        if addr >= 0x8000 and addr <= 0xBFFF:
+            return (self.selected_bank * 0x4000) | (addr & 0x3fff)
+        elif addr >= 0xc000 and addr <= 0xffff:
+            return ((self.num_banks - 1) * 0x4000) | (addr & 0x3fff)
+        return addr & 0x3fff
+
+    def map_cpu_write(self, addr, data):
+        if addr >= 0xC000 and addr <= 0xffff:
+            self.selected_bank = data & 0x7
+        return addr
 
 
 class Apu:

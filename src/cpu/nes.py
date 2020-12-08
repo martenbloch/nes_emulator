@@ -15,6 +15,12 @@ class Nes:
         self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
+
+        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
+        #self.cartridge = cpu.Cardrige("tests/duck-tale-2.nes")
+        #self.cartridge = cpu.Cardrige("tests/Contra.nes")
+        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
+
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
         #self.cartridge = cpu.Cardrige("tests/goal3.nes")
         #self.cartridge = cpu.Cardrige("tests/demo_ntsc.nes")
@@ -24,6 +30,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/scanline.nes")
         #self.cartridge = cpu.Cardrige("tests/allpads.nes")
         #self.cartridge = cpu.Cardrige("tests/read_joy3/test_buttons.nes")
+        #self.cartridge = cpu.Cardrige("tests/quatro-arcade.nes")
 
         #self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
         self.screen = screen
@@ -48,6 +55,7 @@ class Nes:
 
         self.cpu_cycles_to_add = 0
 
+    """
     def get_pressed_button(self):
         for event in pygame.event.get(pygame.KEYDOWN):
             if event.type == pygame.KEYDOWN:
@@ -67,6 +75,7 @@ class Nes:
                     self.apu.pressed_start()
                 elif event.key == pygame.K_1:
                     self.apu.select_pressed()
+    """
 
     def start(self):
         i=0

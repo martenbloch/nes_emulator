@@ -725,7 +725,7 @@ class Ppu:
             return
         elif address == 0x2006:
             self.last_written_data = data
-            # print("PPUADDR write:{}".format(hex(data)))
+            print("PPUADDR write:{}".format(hex(data)))
             if self.address_latch == 0:
                 self.address_latch = 1
                 self.ppu_addr = 0x0000 | ((data & 0x3f) << 8)
@@ -734,6 +734,7 @@ class Ppu:
                 self.address_latch = 0
                 self.ppu_addr = self.ppu_addr | data
                 self.vram_addr = self.ppu_addr
+                print("b:{:04X}".format(self.vram_addr))
 
                 self.cur_addr.set_address(self.ppu_addr)
                 self.tmp_addr.set_address(self.ppu_addr)
@@ -785,9 +786,12 @@ class Ppu:
 
             if self.nametable_inc:
                 self.vram_addr += 32
+                print("c:{:04X}".format(self.vram_addr))
+
                 self.cur_addr.vram_addr += 32
             else:
                 self.vram_addr += 1
+                print("d:{:04X}".format(self.vram_addr))
                 self.cur_addr.vram_addr += 1
             return
         else:
@@ -813,6 +817,7 @@ class VramRegister:
         self.fine_y = 0
 
     def set_address(self, address):
+        print("a:{:04X}".format(address))
         self.vram_addr = address
         self.tile_x = address & 0x1f
         self.tile_y = address & 0x3e0
