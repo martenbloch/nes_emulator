@@ -488,7 +488,6 @@ class Ppu:
                     r = self.cycle % 8
                     if r == 2:
                         self.next_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
-
                     elif r == 4:
 
                         addr = self.cur_addr.base_name_table | 0x3c0 | (self.cur_addr.tile_x >> 2) | (
@@ -535,18 +534,19 @@ class Ppu:
                         v = (self.attr_high.read() & 0xFF00) | upper
                         self.attr_high.write(v)
 
-                if 1 <= self.cycle <= 256:
+                if 1 <= self.cycle <= 336:
                     self.bg_pixel = self.shiftRegister1.shift() | (self.shiftRegister2.shift() << 1)
                     self.pallete_idx = self.attr_low.shift() | (self.attr_high.shift() << 1)
                     idx = (self.read_video_mem(0x3F00 + (self.pallete_idx << 2) + self.bg_pixel)) & 0x3f
-                    self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
+
+                    if 1 <= self.cycle <= 256:
+                        self.screen_data[(self.cycle - 1) + (256 * self.scanline)] = self.palette[idx]
 
                 if self.cycle == 256:
                     self.cur_addr.increment_tile_y()
                 elif self.cycle == 257:
                     self.cur_addr.base_name_table = self.tmp_addr.base_name_table
                     self.cur_addr.tile_x = self.tmp_addr.tile_x
-                    #print("set tileX to: {}".format(self.cur_addr.tile_x))
 
             # ------------------------------sprite rendering------------------------------
             if self.show_sprite:
@@ -573,15 +573,6 @@ class Ppu:
             if self.scanline == 261:
                 self.scanline = -1
                 self.is_odd = not self.is_odd
-                #if self.render_background:
-                #    self.screen.update(self.screen_data)
-
-                    #p1 = pygame.PixelArray(self.frame.get_surface())
-
-                    #a = np.array(self.screen_data).reshape(256, 240)
-                    #b = pygame.surfarray.make_surface(a)
-                    #p2 = pygame.PixelArray(b)
-                    #c=5
 
     def read(self, address):
         if address == 0x2002:
@@ -725,7 +716,7 @@ class Ppu:
             return
         elif address == 0x2006:
             self.last_written_data = data
-            print("PPUADDR write:{}".format(hex(data)))
+            #print("PPUADDR write:{}".format(hex(data)))
             if self.address_latch == 0:
                 self.address_latch = 1
                 self.ppu_addr = 0x0000 | ((data & 0x3f) << 8)
@@ -734,7 +725,6 @@ class Ppu:
                 self.address_latch = 0
                 self.ppu_addr = self.ppu_addr | data
                 self.vram_addr = self.ppu_addr
-                print("b:{:04X}".format(self.vram_addr))
 
                 self.cur_addr.set_address(self.ppu_addr)
                 self.tmp_addr.set_address(self.ppu_addr)
@@ -786,12 +776,10 @@ class Ppu:
 
             if self.nametable_inc:
                 self.vram_addr += 32
-                print("c:{:04X}".format(self.vram_addr))
 
                 self.cur_addr.vram_addr += 32
             else:
                 self.vram_addr += 1
-                print("d:{:04X}".format(self.vram_addr))
                 self.cur_addr.vram_addr += 1
             return
         else:
@@ -817,7 +805,6 @@ class VramRegister:
         self.fine_y = 0
 
     def set_address(self, address):
-        print("a:{:04X}".format(address))
         self.vram_addr = address
         self.tile_x = address & 0x1f
         self.tile_y = address & 0x3e0
@@ -827,12 +814,9 @@ class VramRegister:
         return self.vram_addr
 
     def increment_tile_x(self):
-        #print("inc tileX:{} vrmaAddr:{:04X}".format(self.tile_x, self.get_vram_address()))
         if self.tile_x == 31:
             self.tile_x = 0
-            #self.vram_addr ^= 0x400
             self.base_name_table ^= 0x400
-            #print("switch nt: {:04X}".format(self.vram_addr))
         else:
             self.tile_x += 1
             self.vram_addr += 1
@@ -868,7 +852,7 @@ class VramRegister:
         self.tile_y = px_num // 8
 
     def __repr__(self):
-        return "address:{}".format(hex(self.vram_addr))
+        return "address:{:04X} tileX:{}  tileY:{}  baseAddr:{:04X}".format(self.get_vram_address(), self.tile_x, self.tile_y, self.base_name_table)
 
 
 class ShiftRegister:

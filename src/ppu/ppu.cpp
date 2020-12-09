@@ -746,12 +746,15 @@ void Ppu::clock()
                     m_nextAttribDataH.writeUpperL((m_nextAttribData & 0x2) ? 0xFF : 0x00);
                 }
             }
-            if(m_cycle >=1 && m_cycle <= 256)
+            if(m_cycle >=1 && m_cycle <= 336)
             {
                 m_bgPixel = m_th.shift();
                 m_paletteIdx = m_nextAttribDataH.shift();
-                uint8_t idx = (readVideoMem(0x3F00 + (m_paletteIdx << 2) + m_bgPixel)) & 0x3f;
-                m_frameData[(m_cycle - 1) + m_scanline*256] = m_palette[idx];
+                if(m_cycle >=1 && m_cycle <= 256)
+                {
+                    uint8_t idx = (readVideoMem(0x3F00 + (m_paletteIdx << 2) + m_bgPixel)) & 0x3f;
+                    m_frameData[(m_cycle - 1) + m_scanline*256] = m_palette[idx];
+                }
             }
             if(m_cycle == 256)
                 m_currAddr.incrementTileY();
