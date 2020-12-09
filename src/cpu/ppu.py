@@ -100,7 +100,7 @@ class Ppu:
         self.ppu_addr = 0x0000
 
         self.start_addr = 0x2000
-        self.end_addr = 0x2008
+        self.end_addr = 0x3FFF  #2008
 
         self.name_table_0 = [0 for i in range(1024)]
         self.name_table_1 = [0 for i in range(1024)]
@@ -575,7 +575,10 @@ class Ppu:
                 self.is_odd = not self.is_odd
 
     def read(self, address):
-        if address == 0x2002:
+        address &= 0x7
+        if address == 0x1:
+            return self.last_written_data
+        elif address == 0x2:
 
             if self.sprite_zero_hit:
                 self.status = self.status | (1 << 6)
@@ -589,7 +592,7 @@ class Ppu:
             self.ppu_addr_flag = 0
             self.address_latch = 0
             return val
-        elif address == 0x2007:
+        elif address == 0x7:
             # print("PPU read address:{}".format(hex(self.vram_addr)))
 
             val = 0
@@ -645,7 +648,8 @@ class Ppu:
             self.oam[idx].x = data
 
     def write(self, address, data):
-        if address == 0x2000:
+        address &= 0x7
+        if address == 0x0:
             self.last_written_data = data
 
             self.ppu_ctrl.from_byte(data)
@@ -673,7 +677,7 @@ class Ppu:
                 self.background_half = 0
 
             return
-        elif address == 0x2001:
+        elif address == 0x1:
             self.last_written_data = data
             # print("PPUMASK write:{}".format(hex(data)))
 
@@ -693,18 +697,18 @@ class Ppu:
                 self.show_sprite = False
 
             return
-        elif address == 0x2003:
+        elif address == 0x3:
             self.last_written_data = data
             self.oam_addr = data
             # print("OAM addr:{}".format(hex(self.oam_addr)))
 
-        elif address == 0x2004:
+        elif address == 0x4:
             self.last_written_data = data
             self.write_oam_data(self.oam_addr, data)
             # print("OAM addr:{}   data:{}".format(hex(self.oam_addr), hex(data)))
             self.oam_addr += 1
 
-        elif address == 0x2005:
+        elif address == 0x5:
             self.last_written_data = data
             if self.address_latch == 0:
                 self.address_latch = 1
@@ -714,7 +718,7 @@ class Ppu:
                 self.tmp_addr.scroll_y(data)
             # print("PPU SCROLL write:{}".format(hex(data)))
             return
-        elif address == 0x2006:
+        elif address == 0x6:
             self.last_written_data = data
             #print("PPUADDR write:{}".format(hex(data)))
             if self.address_latch == 0:
@@ -730,7 +734,7 @@ class Ppu:
                 self.tmp_addr.set_address(self.ppu_addr)
             return
 
-        elif address == 0x2007:
+        elif address == 0x7:
             if self.vram_addr >= 0x2000 and self.vram_addr <= 0x3eff:
                 index = self.vram_addr & 0x3ff
                 if self.cardridge.mirroring == 0:  # horizontal
@@ -828,7 +832,7 @@ class VramRegister:
             self.fine_y = 0
             if self.tile_y == 29:
                 self.tile_y = 0
-                self.vram_addr ^= 0x800
+                self.base_name_table ^= 0x800
             else:
                 self.tile_y += 1
 

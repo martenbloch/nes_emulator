@@ -12,16 +12,16 @@ import numpy as np
 class Nes:
     def __init__(self, screen):
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
-        self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
+        #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
+        #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
 
         #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
         #self.cartridge = cpu.Cardrige("tests/duck-tale-2.nes")
         #self.cartridge = cpu.Cardrige("tests/Contra.nes")
         #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
 
-        #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
         #self.cartridge = cpu.Cardrige("tests/goal3.nes")
         #self.cartridge = cpu.Cardrige("tests/demo_ntsc.nes")
         #self.cartridge = cpu.Cardrige("tests/vram_access.nes")
@@ -34,8 +34,8 @@ class Nes:
 
         #self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
         self.screen = screen
-        #self.ppu = ppu.Ppu(screen, self.cartridge)
-        self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
+        self.ppu = ppu.Ppu(screen, self.cartridge)
+        #self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()

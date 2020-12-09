@@ -836,6 +836,7 @@ class Cardrige:
         self.end_addr = 0xFFFF
 
         self.mapper = None
+        print("Mapper:{}".format(mapperId))
         if mapperId == 0:
             self.mapper = Mapper000(prg_size)
         elif mapperId == 2:
