@@ -705,6 +705,8 @@ class Cpu:
             cpu_state_before = ""
 
             instruction = self.read(self.pc)
+            if self.instructions[instruction] == None:
+                raise Exception("Unknown instruction :{:02X}".format(instruction))
 
             if self.enable_print:
                 log_msg += "{:04X} ".format(self.pc)
@@ -759,13 +761,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x01
-        self.x = 0xF0
-        self.y = 0x02
-        self.sp = 0xF3    # end of stack
+        self.a = 0x00
+        self.x = 0xc8
+        self.y = 0x03
+        self.sp = 0xFA    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x05)
+        self.sr.from_byte(0x06)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -922,7 +924,7 @@ class Mapper071:
 
     def map_cpu_write(self, addr, data):
         if addr >= 0xC000 and addr <= 0xffff:
-            self.selected_bank = data & 0x7
+            self.selected_bank = data & 0xF
         return addr
 
 
