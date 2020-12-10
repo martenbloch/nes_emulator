@@ -378,3 +378,98 @@ def test_and_case_1():
 
     assert 0x04 == cpu_mock.a
     assert 0x04 == status_register.to_byte()
+
+
+def test_rol_case_1():
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x04)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x20
+    cpu_mock.read.return_value = 0xAE
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    and_instr = cpu.Rol(cpu_mock, addr_mode_mock)
+    and_instr.execute()
+
+    assert 0x20 == cpu_mock.a
+    assert 0x05 == status_register.to_byte()
+
+
+def test_rol_case_2():
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x04)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x20
+    cpu_mock.read.return_value = 0x5C
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    and_instr = cpu.Rol(cpu_mock, addr_mode_mock)
+    and_instr.execute()
+
+    assert 0x20 == cpu_mock.a
+    assert 0x84 == status_register.to_byte()
+
+
+def test_rol_case_3():
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x04)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x20
+    cpu_mock.read.return_value = 0x00
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    and_instr = cpu.Rol(cpu_mock, addr_mode_mock)
+    and_instr.execute()
+
+    assert 0x20 == cpu_mock.a
+    assert 0x06 == status_register.to_byte()
+
+
+def test_rol_case_4():
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x04)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x20
+    cpu_mock.read.return_value = 0x80
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    and_instr = cpu.Rol(cpu_mock, addr_mode_mock)
+    and_instr.execute()
+
+    assert 0x20 == cpu_mock.a
+    assert 0x07 == status_register.to_byte()
+
+
+def test_rol_case_5():
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x04)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x20
+    cpu_mock.read.return_value = 0xC0
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    and_instr = cpu.Rol(cpu_mock, addr_mode_mock)
+    and_instr.execute()
+
+    assert 0x20 == cpu_mock.a
+    assert 0x85 == status_register.to_byte()
