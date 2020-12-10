@@ -1,1 +1,4 @@
 /src/cpu/tests/*.nes
+*.txt
+*.o
+*.so
