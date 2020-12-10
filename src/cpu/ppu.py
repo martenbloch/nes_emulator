@@ -64,7 +64,6 @@ class PpuCtrl:
             self.sprite_size = 0
         else:
             self.sprite_size = 1
-            print("Sprite size 8x16")
 
         if data & 0x80 == 0:
             self.generate_nmi = False
@@ -312,11 +311,17 @@ class Ppu:
         self.num_secondary_sprites = 0
         self.secondary_oam_num_pixel_to_draw = [0, 0, 0, 0, 0, 0, 0, 0]
         # msg = "scanline:{}  sprites: ".format(y)
+        n = 8
+        if self.ppu_ctrl.sprite_size == 1:
+            n = 16
+
         for i in range(64):
-            if self.oam[i].y <= y < self.oam[i].y + 8:
+            if self.oam[i].y <= y < self.oam[i].y + n:
+                #print("add sprite y:{} oam:{}".format(y, ascii(self.oam[i])))
                 self.secondary_oam[self.num_secondary_sprites] = self.oam[i]
                 self.secondary_oam_x_counter[self.num_secondary_sprites] = self.oam[i].x
                 self.secondary_oam_attr_bytes[self.num_secondary_sprites] = self.oam[i].attr
+
                 self.secondary_oam_num_pixel_to_draw[self.num_secondary_sprites] = 8
                 self.num_secondary_sprites += 1
                 # msg += ascii(self.oam[i])
@@ -358,11 +363,22 @@ class Ppu:
         row = y % 8
         for i in range(8):
             sprite = self.secondary_oam[i]
+            row = y - sprite.y
+            if row < 0 or row >= 16:
+                continue
             half = 0
             if self.ppu_ctrl.sprite_address == 0x1000:
                 half = 1
 
-            low, upper = self.cardridge.get_tile_data(sprite.tile_num, row, half)
+            tile_num = sprite.tile_num
+            if self.ppu_ctrl.sprite_size == 1:
+                row = row % 8
+                tile_num &= 0xFE
+                half = sprite.tile_num & 0x1
+                if y - sprite.y >= 8:
+                    tile_num += 1
+
+            low, upper = self.cardridge.get_tile_data(tile_num, row, half)
 
             #if sprite.tile_num != 255:
                 #print("half:{} tile_num:{} row:{} l:{} u:{}".format(half, sprite.tile_num, row, low, upper))

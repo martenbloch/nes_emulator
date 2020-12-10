@@ -20,10 +20,9 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
         #self.cartridge = cpu.Cardrige("tests/duck-tale-2.nes")
         #self.cartridge = cpu.Cardrige("tests/Contra.nes")
-        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
 
         #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
-        self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
+        #self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
 
         #self.cartridge = cpu.Cardrige("tests/goal3.nes")
         #self.cartridge = cpu.Cardrige("tests/demo_ntsc.nes")

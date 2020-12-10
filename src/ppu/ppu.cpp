@@ -382,10 +382,11 @@ void Ppu::fillSecondaryOam(int y)
 {
     m_numSecondarySprites = 0;
     m_secondaryOamNumPixelToDraw.fill(0);
+    uint8_t n = (m_ctrl.spriteSize == 1) ? 16 : 8;
     
     for(int i =0; i < 64; ++i)
     {
-        if(y >= m_oam[i].y && y < (m_oam[i].y + 8))
+        if(y >= m_oam[i].y && y < (m_oam[i].y + n))
         {
             m_secondaryOam[m_numSecondarySprites] = m_oam[i];
             m_secondaryOamXCounter[m_numSecondarySprites] = m_oam[i].x;
@@ -429,15 +430,25 @@ void Ppu::decrementSpriteXCounters()
 
 void Ppu::fillSpritesShiftRegisters(int y)
 {
-    uint8_t row = y % 8;
     for(int i=0; i<8; ++i)
     {
         OamData sprite = m_secondaryOam[i];
+        uint8_t row = y - sprite.y;
         uint8_t half = 0;
         if(m_ctrl.spritePatternTableAddress == 0x1000)
             half = 1;
         
-        TileRow tr = getTileData(sprite.tile_num, row, half);
+        uint8_t tile_num = sprite.tile_num;
+        if(m_ctrl.spriteSize == 1)
+        {
+            row = row % 8;
+            tile_num &= 0xFE;
+            half = sprite.tile_num & 0x1;
+            if(y - sprite.y >= 8)
+                tile_num += 1;
+        }
+
+        TileRow tr = getTileData(tile_num, row, half);
         
         if(sprite.flipHorizontally())
         {
