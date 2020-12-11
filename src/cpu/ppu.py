@@ -464,7 +464,11 @@ class Ppu:
                 self.sprite_zero_hit = False
 
             elif 280 <= self.cycle <= 304:
-                self.cur_addr.base_name_table = self.tmp_addr.base_name_table
+                if self.tmp_addr.base_name_table & 0x800 == 0x800:
+                    self.cur_addr.base_name_table |= 0x800
+                else:
+                    self.cur_addr.base_name_table &= ~0x800
+
                 self.cur_addr.tile_y = self.tmp_addr.tile_y
                 self.cur_addr.fine_y = self.tmp_addr.fine_y
 
@@ -504,6 +508,7 @@ class Ppu:
                     r = self.cycle % 8
                     if r == 2:
                         self.next_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+
                     elif r == 4:
 
                         addr = self.cur_addr.base_name_table | 0x3c0 | (self.cur_addr.tile_x >> 2) | (
@@ -561,7 +566,10 @@ class Ppu:
                 if self.cycle == 256:
                     self.cur_addr.increment_tile_y()
                 elif self.cycle == 257:
-                    self.cur_addr.base_name_table = self.tmp_addr.base_name_table
+                    if self.tmp_addr.base_name_table & 0x400 == 0x400:
+                        self.cur_addr.base_name_table |= 0x400
+                    else:
+                        self.cur_addr.base_name_table &= ~0x400
                     self.cur_addr.tile_x = self.tmp_addr.tile_x
 
             # ------------------------------sprite rendering------------------------------

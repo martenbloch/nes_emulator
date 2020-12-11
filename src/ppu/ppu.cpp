@@ -693,7 +693,10 @@ void Ppu::clock()
             m_status.spriteZeroHit = false;
         }
         else if(m_cycle >= 280 && m_cycle <= 304) {
-            m_currAddr.baseNameTable = m_tmpAddr.baseNameTable;
+            if((m_tmpAddr.baseNameTable & 0x800) == 0x800)
+                m_currAddr.baseNameTable |= 0x800;
+            else
+                m_currAddr.baseNameTable &= ~0x800;
             m_currAddr.tileY = m_tmpAddr.tileY;
             m_currAddr.fineY = m_tmpAddr.fineY;
         }
@@ -774,7 +777,11 @@ void Ppu::clock()
                 m_currAddr.incrementTileY();
             else if( m_cycle == 257)
             {
-                m_currAddr.baseNameTable = m_tmpAddr.baseNameTable;
+                if((m_tmpAddr.baseNameTable & 0x400) == 0x400)
+                    m_currAddr.baseNameTable |= 0x400;
+                else
+                    m_currAddr.baseNameTable &= ~0x400;
+
                 m_currAddr.tileX = m_tmpAddr.tileX;
             }
         }

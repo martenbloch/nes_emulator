@@ -818,6 +818,7 @@ class Cardrige:
         flag6 = data[6]
         flag7 = data[7]
         self.mirroring = flag6 & 0x1    # 0-horizontal, 1-veritcal
+        print("mirroring:{}".format(self.mirroring))
 
         trainer = data[6] & 0x4
 
