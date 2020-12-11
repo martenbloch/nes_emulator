@@ -14,7 +14,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
         #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
-        #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
+        self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
 
         #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")

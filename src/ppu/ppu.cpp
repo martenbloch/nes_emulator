@@ -346,8 +346,8 @@ uint8_t Ppu::readVideoMem(uint16_t address)
     {
         return m_chr[address];  // TODO: check it
     }
-    else
-        throw std::exception();
+
+    std::cout << "readVideoMem address out of range: 0x" << std::hex << address << std::endl;
     return 0x0000;
 }
 
@@ -472,7 +472,8 @@ const std::vector<uint32_t>& Ppu::getScreenData()
 
 void Ppu::write(uint16_t address, uint8_t data)
 {
-    if(address == 0x2000)
+    address &= 0x7;
+    if(address == 0x0)
     {
         m_lastWrittenData = data;
         m_ctrl = byteToPpuCtrl(data);
@@ -484,24 +485,24 @@ void Ppu::write(uint16_t address, uint8_t data)
             m_backgroundHalf = 0;
         return;
     }
-    else if(address == 0x2001)
+    else if(address == 0x1)
     {
         m_lastWrittenData = data;
         m_mask = byteToPpuMask(data);
         return;
     }
-    else if(address == 0x2003)
+    else if(address == 0x3)
     {
         m_lastWrittenData = data;
         m_oamAddr = data;
     }
-    else if(address == 0x2004)
+    else if(address == 0x4)
     {
         m_lastWrittenData = data;
         writeOamData(m_oamAddr, data);
         m_oamAddr += 1;
     }
-    else if(address == 0x2005)
+    else if(address == 0x5)
     {
         m_lastWrittenData = data;
         if(m_addressLatch == 0)
@@ -515,7 +516,7 @@ void Ppu::write(uint16_t address, uint8_t data)
             m_tmpAddr.scrollY(data);
         }
     }
-    else if(address == 0x2006)
+    else if(address == 0x6)
     {
         m_lastWrittenData = data;
         if(m_addressLatch == 0)
@@ -534,7 +535,7 @@ void Ppu::write(uint16_t address, uint8_t data)
         }
         return;
     }
-    else if(address == 0x2007)
+    else if(address == 0x7)
     {
         if(m_currAddr.vramAddr >= 0x2000 && m_currAddr.vramAddr <= 0x3eff)
         {
@@ -576,18 +577,19 @@ void Ppu::write(uint16_t address, uint8_t data)
         else if(m_currAddr.vramAddr >= 0 && m_currAddr.vramAddr <= 0x1fff)
             m_chr[m_currAddr.vramAddr] = data;
         else
-            std::cout << "Eception, unhandled vram addr: " << m_currAddr.vramAddr << " data: " << int(data) << std::endl;
+            std::cout << "ppu::write() Eception, unhandled vram addr: " << m_currAddr.vramAddr << " data: " << int(data) << std::endl;
 
         m_currAddr.vramAddr += m_ctrl.vramAddressIncrement;
     }
     else
-        std::cout << "Exception, unhandled address: " << address << " data: " << int(data) << std::endl;
+        std::cout << "ppu::write() Exception, unhandled address: " << address << " data: " << int(data) << std::endl;
 }
 
 
 uint8_t Ppu::read(uint16_t address)
 {
-    if(address == 0x2002)
+    address &= 0x7;
+    if(address == 0x2)
     {
         //std::cout << "mask: " << std::hex << int(m_status.toByte()) << std::endl;
         uint8_t val = m_lastWrittenData & 0x1f | m_status.toByte() & 0xe0;
@@ -595,7 +597,7 @@ uint8_t Ppu::read(uint16_t address)
         m_addressLatch = 0;
         return val;
     }
-    else if(address == 0x2007)
+    else if(address == 0x7)
     {
         uint8_t val{0};
         if( m_currAddr.vramAddr >= 0x2000 && m_currAddr.vramAddr <= 0x3eff)
@@ -631,8 +633,9 @@ uint8_t Ppu::read(uint16_t address)
 
         return val;
     }
-    else
-        throw std::exception();
+    
+    std::cout << "Ppu::read() Exception, unhandled address: 0x" << std::hex << address << std::endl;
+    return 0x00;
 }
 
 void Ppu::reset()
@@ -642,7 +645,7 @@ void Ppu::reset()
 
 bool Ppu::isAddressValid(uint16_t address)
 {
-    return address >= 0x2000 && address < 0x2008;
+    return address >= 0x2000 && address < 0x3FFF;
 }
 
 bool Ppu::isNmiRaised()
