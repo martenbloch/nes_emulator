@@ -11,20 +11,29 @@ import numpy as np
 
 class Nes:
     def __init__(self, screen):
+        # MAPPER 0
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
         #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
 
-        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
+        # MAPPER 2
         #self.cartridge = cpu.Cardrige("tests/duck-tale-2.nes")
         #self.cartridge = cpu.Cardrige("tests/Contra.nes")
 
+        # MAPPER 4
+        #self.cartridge = cpu.Cardrige("tests/goal3.nes")
+
+        # MAPPER 71
+        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
         #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
         #self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
 
-        #self.cartridge = cpu.Cardrige("tests/goal3.nes")
+        # MAPPER 232
+        #self.cartridge = cpu.Cardrige("tests/quatro-arcade.nes")
+
+
         #self.cartridge = cpu.Cardrige("tests/demo_ntsc.nes")
         #self.cartridge = cpu.Cardrige("tests/vram_access.nes")
         #self.cartridge = cpu.Cardrige("tests/palette_ram.nes")
@@ -32,7 +41,6 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/scanline.nes")
         #self.cartridge = cpu.Cardrige("tests/allpads.nes")
         #self.cartridge = cpu.Cardrige("tests/read_joy3/test_buttons.nes")
-        #self.cartridge = cpu.Cardrige("tests/quatro-arcade.nes")
 
         #self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
         self.screen = screen

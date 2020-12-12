@@ -414,10 +414,16 @@ void Ppu::decrementSpriteXCounters()
 
             uint8_t priority = (m_secondaryOamAttrBytes[i] & 0x20) >> 5;
 
-            if(priority == 0 && color != 0)
+            if(m_bgPixel == 0 && color == 0)
             {
-                m_frameData[(m_cycle - 1) + m_scanline*256] = m_palette[idx];
+                idx = (readVideoMem(0x3F00) & 0x3f);
+                m_frameData[(m_cycle - 1) + (256 * m_scanline)] = m_palette[idx];
             }
+            else if(m_bgPixel == 0 && color != 0)
+                m_frameData[(m_cycle - 1) + (256 * m_scanline)] = m_palette[idx];
+            else if(m_bgPixel != 0 && color != 0 && priority == 0)
+                m_frameData[(m_cycle - 1) + (256 * m_scanline)] = m_palette[idx];
+
             m_secondaryOamNumPixelToDraw[i] -= 1;
 
             if(!m_status.spriteZeroHit && i == 0 && color != 0 && m_bgPixel != 0)
