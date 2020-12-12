@@ -114,6 +114,7 @@ void VramRegister::scrollX(uint8_t x)
 void VramRegister::scrollY(uint8_t y)
 {
     tileY = y/8;
+    fineY = y - (tileY * 8);
 }
 
 OamData::OamData()

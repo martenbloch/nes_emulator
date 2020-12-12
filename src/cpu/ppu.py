@@ -878,6 +878,7 @@ class VramRegister:
 
     def scroll_y(self, px_num):  # 0 - 239
         self.tile_y = px_num // 8
+        self.fine_y = px_num - (self.tile_y * 8)
 
     def __repr__(self):
         return "address:{:04X} tileX:{}  tileY:{}  baseAddr:{:04X}".format(self.get_vram_address(), self.tile_x, self.tile_y, self.base_name_table)
