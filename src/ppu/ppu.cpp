@@ -136,6 +136,11 @@ bool OamData::flipHorizontally()
     return (attr & 0x40) > 0;
 }
 
+bool OamData::flipVertical()
+{
+    return (attr & 0x80) > 0;
+}
+
 Ppu::Ppu(uint8_t* patternTableData, uint16_t len, uint8_t mirroring)
 : m_cycle{0}, 
  m_scanline{0}, 
@@ -453,6 +458,11 @@ void Ppu::fillSpritesShiftRegisters(int y)
             half = sprite.tile_num & 0x1;
             if(y - sprite.y >= 8)
                 tile_num += 1;
+        }
+
+        if(sprite.flipVertical())
+        {
+            row = 7 - row;
         }
 
         TileRow tr = getTileData(tile_num, row, half);

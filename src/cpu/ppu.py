@@ -16,6 +16,9 @@ class OamData:
     def flip_horizontally(self):
         return self.attr & 0x40 == 0x40
 
+    def flip_vertical(self):
+        return self.attr & 0x80 == 0x80
+
     def palette(self):
         return self.attr & 0x3
 
@@ -378,6 +381,9 @@ class Ppu:
                 if y - sprite.y >= 8:
                     tile_num += 1
 
+            if sprite.flip_vertical():
+                row = 7 - row
+
             low, upper = self.cardridge.get_tile_data(tile_num, row, half)
 
             #if sprite.tile_num != 255:
@@ -386,6 +392,8 @@ class Ppu:
             if sprite.flip_horizontally():
                 low = int('{:08b}'.format(low)[::-1], 2)
                 upper = int('{:08b}'.format(upper)[::-1], 2)
+
+
 
             self.secondary_oam_l[i] = ShiftRegister(8, low)
             self.secondary_oam_h[i] = ShiftRegister(8, upper)

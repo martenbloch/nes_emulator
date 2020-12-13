@@ -113,6 +113,7 @@ struct OamData
     OamData();
     uint8_t palette();
     bool flipHorizontally();
+    bool flipVertical();
     uint8_t x;
     uint8_t tile_num;
     uint8_t attr;
