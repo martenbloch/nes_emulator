@@ -744,7 +744,7 @@ void Ppu::clock()
 
                     if(m_currAddr.tileY & 0x02)
                         attrData >>= 4;
-                    else if( m_currAddr.tileX & 0x02)
+                    if( m_currAddr.tileX & 0x02)
                         attrData >>= 2;
                     attrData &= 0x03;
                     m_nextAttribData = attrData;

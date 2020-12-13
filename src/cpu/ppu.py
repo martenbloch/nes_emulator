@@ -516,10 +516,11 @@ class Ppu:
 
                         attr_data = self.read_video_mem(addr)
 
-                        if self.cur_addr.tile_y & 0x02:
+                        if (self.cur_addr.tile_y & 0x02) > 0:
                             attr_data >>= 4
-                        elif self.cur_addr.tile_x & 0x02:
+                        if (self.cur_addr.tile_x & 0x02) > 0:
                             attr_data >>= 2
+
                         attr_data &= 0x03
                         self.pallete_idx = attr_data
                         self.pallete_base_address = 0x3F00 + (self.pallete_idx << 2)
