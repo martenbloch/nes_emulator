@@ -15,41 +15,39 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
         #self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
-        self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
+        #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
+
+        # MAPPER 1
+        #self.cartridge = cpu.Cardrige("tests/darkwing-duck.nes")
 
         # MAPPER 2
         #self.cartridge = cpu.Cardrige("tests/duck-tale-2.nes")
         #self.cartridge = cpu.Cardrige("tests/Contra.nes")
+        #self.cartridge = cpu.Cardrige("tests/Castlevania.nes")
 
         # MAPPER 4
         #self.cartridge = cpu.Cardrige("tests/goal3.nes")
+        #self.cartridge = cpu.Cardrige("tests/capitan-america.nes")
 
         # MAPPER 71
-        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
+        self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
         #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
         #self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
+        #self.cartridge = cpu.Cardrige("tests/ultimate-Stuntman.nes")
+        #self.cartridge = cpu.Cardrige("tests/micro-machines.nes")
 
         # MAPPER 232
+        #self.cartridge = cpu.Cardrige("tests/quattro-adventure-1.nes")
         #self.cartridge = cpu.Cardrige("tests/quatro-arcade.nes")
+        #self.cartridge = cpu.Cardrige("tests/robin-hood.nes")
 
-
-        #self.cartridge = cpu.Cardrige("tests/demo_ntsc.nes")
-        #self.cartridge = cpu.Cardrige("tests/vram_access.nes")
-        #self.cartridge = cpu.Cardrige("tests/palette_ram.nes")
-        #self.cartridge = cpu.Cardrige("tests/vbl_clear_time.nes")
-        #self.cartridge = cpu.Cardrige("tests/scanline.nes")
-        #self.cartridge = cpu.Cardrige("tests/allpads.nes")
-        #self.cartridge = cpu.Cardrige("tests/read_joy3/test_buttons.nes")
-
-        #self.cartridge = cpu.Cardrige("tests/instr_test-v5/all_instrs.nes")
         self.screen = screen
         #self.ppu = ppu.Ppu(screen, self.cartridge)
         self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()
-        #self.cartridge = cpu.Cardrige(0xC000, [])#data[16:16 + 16384])
         self.apu = cpu.Apu()
 
         self.bus.connect(self.cartridge)
@@ -89,6 +87,7 @@ class Nes:
 
     def start(self):
         i=0
+        self.c.enable_print = False
         while True:
         #while i < 8000000:
             self.ppu.clock()
@@ -128,9 +127,10 @@ class Nes:
                 if self.c.clock_ticks == 1010347:
                     j=3
                 self.c.nmi()
-                #fh = open("log.txt", "a")
-                #fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
-                #fh.close()
+                if self.c.enable_print:
+                    fh = open("log.txt", "a")
+                    fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
+                    fh.close()
                 self.ppu.raise_nmi = False
                 #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
                 #self.ppu.cycle += 21

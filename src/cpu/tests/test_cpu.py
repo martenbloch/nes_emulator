@@ -361,6 +361,44 @@ def test_sbc_case_16():
     assert 0x04 == status_register.to_byte()
 
 
+def test_sbc_case_17():
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x85)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0xDF
+    cpu_mock.read.return_value = 0x80
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    sbc_instr = cpu.Sbc(cpu_mock, addr_mode_mock)
+    sbc_instr.execute()
+
+    assert 0x5F == cpu_mock.a
+    assert 0x05 == status_register.to_byte()
+
+
+def test_sbc_case_18():
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x05)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x5F
+    cpu_mock.read.return_value = 0x80
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    sbc_instr = cpu.Sbc(cpu_mock, addr_mode_mock)
+    sbc_instr.execute()
+
+    assert 0xDF == cpu_mock.a
+    assert 0xC4 == status_register.to_byte()
+
+
 def test_and_case_1():
     status_register = cpu.StatusRegister()
     status_register.from_byte(0x06)

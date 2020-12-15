@@ -327,6 +327,10 @@ uint8_t Ppu::readVideoMem(uint16_t address)
                 return m_nt0[index];
             else if((address >= 0x2800 && address <= 0x2bff) || (address >= 0x2c00 && address <= 0x2fff))
                 return m_nt1[index];
+            else if( (address >= 0x3000 && address <= 0x33ff) || (address >= 0x3400 && address <= 0x37ff))
+                return m_nt0[index];
+            else if((address >= 0x3800 && address <= 0x3bff) || (address >= 0x3c00 && address <= 0x3eff))
+                return m_nt1[index];
         }
         else
         {
@@ -334,6 +338,10 @@ uint8_t Ppu::readVideoMem(uint16_t address)
                 return m_nt0[index];
             else if((address >= 0x2400 && address <= 0x27ff) || (address >= 0x2c00 && address <= 0x2fff))
                 return m_nt1[index];
+            else if((address >= 0x3000 && address <= 0x33ff) || (address >= 0x3800 && address <= 0x3bff))
+                return m_nt0[index];
+             else if((address >= 0x3400 && address <= 0x37ff) || (address >= 0x3c00 && address <= 0x3eff))
+                return m_nt1[index];               
         }
     } 
     else if(address >= 0x3f00 && address <= 0x3fff) 

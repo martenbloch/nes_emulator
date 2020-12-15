@@ -761,13 +761,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x00
-        self.x = 0xc8
-        self.y = 0x03
-        self.sp = 0xFA    # end of stack
+        self.a = 0x01
+        self.x = 0x01
+        self.y = 0x00
+        self.sp = 0x7D    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x06)
+        self.sr.from_byte(0x04)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -788,8 +788,11 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
+        self.data[0x7ff] = 0x97
 
     def read(self, address):
+        #if address == 0x7fe:
+        #    print("read 07FE data:{:02X}".format(self.data[address & 0x07FF]))
         return self.data[address & 0x07FF]
 
     def read_many(self, address, num_bytes=1):
@@ -797,6 +800,8 @@ class RamMemory:
         return tuple(self.data[address: address+num_bytes])
 
     def write(self, address, data):
+        #if address == 0x7fe:
+        #    print("write 07FE data:{:02X}".format(data))
         self.data[address & 0x07FF] = data
 
     def is_address_valid(self, address):
@@ -846,6 +851,8 @@ class Cardrige:
             self.mapper = Mapper002(prg_size)
         elif mapperId == 71:
             self.mapper = Mapper071(prg_size)
+        elif mapperId == 232:
+            self.mapper = Mapper071(prg_size)
         else:
             raise NotImplementedError("unknown mapper id:{}".format(mapperId))
 
@@ -862,7 +869,10 @@ class Cardrige:
         return tuple(self.prg[mapped_addr:mapped_addr+num_bytes])
 
     def write(self, address, data):
-        self.prg[self.mapper.map_cpu_write(address, data)] = data
+        #print("Write addr:{:04X}  data:{:02X}".format(address, data))
+        mapped_addr = self.mapper.map_cpu_write(address, data)
+        if mapped_addr != -1:
+            self.prg[mapped_addr] = data
 
     def is_address_valid(self, address):
         return self.start_addr <= address <= self.end_addr
@@ -907,7 +917,8 @@ class Mapper002:
 
     def map_cpu_write(self, addr, data):
         if addr >= 0x8000 and addr <= 0xffff:
-            self.selected_bank = data & 0x7
+            self.selected_bank = data & 0xF
+            return -1
         return addr
 
 
@@ -926,6 +937,7 @@ class Mapper071:
     def map_cpu_write(self, addr, data):
         if addr >= 0xC000 and addr <= 0xffff:
             self.selected_bank = data & 0xF
+            return -1
         return addr
 
 
@@ -948,6 +960,7 @@ class Apu:
 
     def read(self, address):
         if address == 0x4016:
+            #print("Controller read")
             d = 0x40
             if self.read_button:
                 if self.cnt == 7 and self.btn_right:
@@ -2151,7 +2164,7 @@ class Php:
 
     def execute(self):
         # PHP sets 4 and 5 bit of status register to 1
-        val = self.cpu.sr.to_byte() | (1 << 5) | (1 << 4)
+        val = self.cpu.sr.to_byte()# | (1 << 5) | (1 << 4)
         self.cpu.push(val)
         return self.addressMode.cycles
 
@@ -2193,10 +2206,10 @@ class Plp:
 
     def execute(self):
         val = self.cpu.pop()
-        if val & 0x10 == 0x10:
-            val = val & 0xef
-        else:
-            val = val | (1 << 5)
+        #if val & 0x10 == 0x10:
+        #    val = val & 0xef
+        #else:
+        #    val = val | (1 << 5)
 
         self.cpu.sr.from_byte(val)
         return self.addressMode.cycles
@@ -2518,6 +2531,10 @@ class Sbc:
             self.cpu.sr.c = 0
         """
 
+        u = sig_a - sig_o
+        if u > 127 or u < -128:
+            self.cpu.sr.v = 1
+        """
         if (self.cpu.a & 0x80) == 0 and (operand & 0x80) == 0 and (self.cpu.a < operand) and operand - self.cpu.a > 0x7F:
             self.cpu.sr.v = 1
 
@@ -2526,7 +2543,7 @@ class Sbc:
 
         if tmp < -128:
             self.cpu.sr.v = 1
-
+        """
         if tmp < 0:
             tmp = hex(tmp & 0xff)
             tmp = int(tmp, 16)
