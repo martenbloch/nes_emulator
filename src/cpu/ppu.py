@@ -611,6 +611,8 @@ class Ppu:
         address &= 0x7
         if address == 0x1:
             return self.last_written_data
+        elif address == 0x4:
+            return self.read_oam_data(self.oam_addr)
         elif address == 0x2:
 
             if self.sprite_zero_hit:
@@ -679,6 +681,23 @@ class Ppu:
             self.oam[idx].attr = data
         elif param_idx == 3:
             self.oam[idx].x = data
+
+    def read_oam_data(self, address):
+        idx = address // 4
+        param_idx = address % 4
+
+        if idx >= len(self.oam):
+            raise Exception("out of range: {}, address:{}".format(idx, hex(address)))
+
+        if param_idx == 0:
+            return self.oam[idx].y
+        elif param_idx == 1:
+            return self.oam[idx].tile_num
+        elif param_idx == 2:
+            return self.oam[idx].attr
+        elif param_idx == 3:
+            return self.oam[idx].x
+        return 0x0
 
     def write(self, address, data):
         address &= 0x7

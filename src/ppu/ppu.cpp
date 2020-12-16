@@ -622,6 +622,10 @@ uint8_t Ppu::read(uint16_t address)
         m_addressLatch = 0;
         return val;
     }
+    else if(address == 0x4)
+    {
+        return readOamData(m_oamAddr);
+    }
     else if(address == 0x7)
     {
         uint8_t val{0};
@@ -707,6 +711,29 @@ void Ppu::writeOamData(uint8_t address, uint8_t data)
             m_oam[idx].attr = data;
         else if(param_idx == 3)
             m_oam[idx].x = data;
+}
+
+uint8_t Ppu::readOamData(uint8_t address)
+{
+    uint8_t idx = address/4;
+    uint8_t param_idx = address % 4;
+
+    if(idx >= m_oam.size())
+    {
+        std::cout << "readOamData(), out of range" << std::endl;
+    }
+
+    if(param_idx == 0)
+        return m_oam[idx].y;
+    else if(param_idx == 1)
+        return m_oam[idx].tile_num;
+    else if(param_idx == 2)
+        return m_oam[idx].attr;
+    else if(param_idx == 3)
+        return m_oam[idx].x;
+
+    std::cout << "read OAM should not happen..." << std::endl;
+    return 0x0;
 }
 
 void Ppu::clock() 

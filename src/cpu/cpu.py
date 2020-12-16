@@ -744,6 +744,8 @@ class Cpu:
     def push(self, value):
         self.write(0x0100 | self.sp, value)
         self.sp -= 1
+        if self.sp == -1:
+            self.sp = 0xFF
 
     def pop(self):
         self.sp += 1
@@ -761,13 +763,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x01
-        self.x = 0x01
+        self.a = 0x00
+        self.x = 0x00
         self.y = 0x00
-        self.sp = 0x7D    # end of stack
+        self.sp = 0xF6    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x04)
+        self.sr.from_byte(0x47)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -788,7 +790,7 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        self.data[0x7ff] = 0x97
+        self.data[0x0352] = 0x97
 
     def read(self, address):
         #if address == 0x7fe:
@@ -1495,6 +1497,7 @@ class Cli:
 
     def execute(self):
         self.cpu.sr.i = 0
+        return self.addressMode.cycles
 
 
 class Clv:

@@ -31,8 +31,8 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/capitan-america.nes")
 
         # MAPPER 71
-        self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
-        #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
+        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
+        self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
         #self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
         #self.cartridge = cpu.Cardrige("tests/ultimate-Stuntman.nes")
         #self.cartridge = cpu.Cardrige("tests/micro-machines.nes")

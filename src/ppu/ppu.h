@@ -134,6 +134,7 @@ class Ppu
         void clearNmi();
         bool bgRenderingEnabled();
         void writeOamData(uint8_t address, uint8_t data);
+        uint8_t readOamData(uint8_t address);
 
     private:
         uint16_t m_cycle;
