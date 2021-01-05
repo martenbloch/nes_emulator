@@ -30,10 +30,13 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/goal3.nes")
         #self.cartridge = cpu.Cardrige("tests/capitan-america.nes")
 
+        # MAPPER 64
+        #self.cartridge = cpu.Cardrige("tests/ballon-fight.nes")
+
         # MAPPER 71
         #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
-        self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
-        #self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
+        #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
+        self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
         #self.cartridge = cpu.Cardrige("tests/ultimate-Stuntman.nes")
         #self.cartridge = cpu.Cardrige("tests/micro-machines.nes")
 
@@ -43,8 +46,8 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/robin-hood.nes")
 
         self.screen = screen
-        #self.ppu = ppu.Ppu(screen, self.cartridge)
-        self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
+        self.ppu = ppu.Ppu(screen, self.cartridge)
+        #self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()
@@ -62,6 +65,7 @@ class Nes:
         self.dma_offset = 0x00
 
         self.cpu_cycles_to_add = 0
+        self.dummy_dma = True
 
     """
     def get_pressed_button(self):
@@ -87,20 +91,52 @@ class Nes:
 
     def start(self):
         i=0
-        self.c.enable_print = False
+        start = 0
+        stop = 0
+        num_c = 0
+        even_cpu_cycle = False
+        waited_cycles = 0
+        self.c.enable_print = True
+
         while True:
         #while i < 8000000:
             self.ppu.clock()
+            if self.bus.dma_request:
+                num_c += 1
+            #if self.bus.dma_request and self.dummy_dma:
+            #    print("ppu clock")
             if self.num_of_cycles % 3 == 0:
                 if self.bus.dma_request:
-                    # suspend CPU, it takes 513/514 clock cycles
-                    if self.write_complete == False:
-                        self.write_complete = True
-                    elif self.odd_cycle_checked == False and self.num_of_cycles % 2 == 1:
-                        self.odd_cycle_checked = True
-                        self.cpu_cycles_to_add += 1
+                    #if self.dummy_dma == True:
+                    #    #print("dma {}   {}".format(self.c.clock_ticks, self.num_of_cycles))
+                    #    if self.num_of_cycles % 2 == 1:
+                    #        #print("pipi {}    {}".format(self.c.clock_ticks, self.num_of_cycles))
+                    #        self.dummy_dma = False
+                    #else:
+                    #self.dummy_dma = False
+
+                    # before start we have to wait 1/2 idle cycles
+                    if self.dummy_dma == True:
+                        #print("check 1  cyc:{}   cpu:{}  ppu:{}".format(self.num_of_cycles, self.c.clock_ticks, self.ppu.cycle))
+                        if self.c.clock_ticks % 2 == 1 and waited_cycles != 0:
+                            #print("start dma {}  clk:{}".format(self.c.clock_ticks, self.num_of_cycles))
+                            start = self.num_of_cycles
+                            self.dummy_dma = False
+                        else:
+                            self.c.clock_ticks += 1
+                            even_cpu_cycle = True
+                            waited_cycles += 1
                     else:
-                        if self.num_of_cycles % 2 == 0:
+                        #print("dma request  cpu:{}   sys:{} ppu:{}".format(self.c.clock_ticks, self.num_of_cycles,
+                        #                                                   self.ppu.cycle))
+                        # suspend CPU, it takes 513/514 clock cycles
+                        #if self.write_complete == False:
+                        #    self.write_complete = True
+                        #elif self.odd_cycle_checked == False and self.c.clock_ticks % 2 == 1:
+                        #    self.odd_cycle_checked = True
+                        #    self.cpu_cycles_to_add += 1
+                        #else:
+                        if self.c.clock_ticks % 2 == 0:
                             # read data
                             addr = (self.bus.dma_high_byte << 8) | self.dma_offset
                             #print("PPU OAM read from addr:{}".format(hex(addr)))
@@ -116,16 +152,27 @@ class Nes:
                                 self.write_complete = False
                                 self.odd_cycle_checked = False
                                 self.dma_offset = 0x00
-                                self.c.clock_ticks += self.cpu_cycles_to_add
+                                #self.c.clock_ticks += self.cpu_cycles_to_add
                                 #print("add extra ticks: {}".format(self.cpu_cycles_to_add))
                                 self.cpu_cycles_to_add = 0
+                                self.dummy_dma = True
+                                stop = self.num_of_cycles
+                                #print("END DMA  clk:{}   ppu:{}   sl:{}   DIFF:{} num:{}".format(self.num_of_cycles, self.ppu.cycle, self.ppu.scanline, stop-start, num_c))
+                                num_c = 0
+                                waited_cycles = 0
+                                if even_cpu_cycle:
+                                    self.c.clock_ticks += 1
+                                else:
+                                    self.c.clock_ticks += 3
+
+                                even_cpu_cycle = False
+                                #self.ppu.cycle += 3
+                        self.c.clock_ticks += 1
                 else:
                     self.c.clock()
 
-            if self.ppu.raise_nmi and self.c.new_instruction:
+            if self.ppu.raise_nmi:# and self.c.new_instruction:
                 #print("NMI request cyc:{}".format(self.c.clock_ticks))
-                if self.c.clock_ticks == 1010347:
-                    j=3
                 self.c.nmi()
                 if self.c.enable_print:
                     fh = open("log.txt", "a")
@@ -133,7 +180,7 @@ class Nes:
                     fh.close()
                 self.ppu.raise_nmi = False
                 #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
-                #self.ppu.cycle += 21
+                self.ppu.cycle += 21
 
                 #self.screen.update(self.ppu.get_frame_data())
                 #self.screen.update(self.ppu.screen_data)

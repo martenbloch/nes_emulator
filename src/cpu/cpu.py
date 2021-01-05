@@ -705,6 +705,11 @@ class Cpu:
             cpu_state_before = ""
 
             instruction = self.read(self.pc)
+            #if self.pc == 0x8258 or self.pc == 0x825B:
+            #    self.enable_print = True
+            #else:
+            #    self.enable_print = False
+
             if self.instructions[instruction] == None:
                 raise Exception("Unknown instruction :{:02X}".format(instruction))
 
@@ -713,6 +718,8 @@ class Cpu:
                 log_msg += self.inst_as_bytes(self.pc, self.instructions[instruction].size())
                 cpu_state_before = self.to_str()
                 ppu = self.bus.get_device_by_address(0x2000)
+                cpu_state_before += " CYC:{:<3} SL:{:<3}".format(ppu.cycle, ppu.scanline)
+                cpu_state_before += " CPU Cycle:{}".format(self.clock_ticks)
                 cpu_state_before += "\r\n"
             self.pc += 1
 
@@ -765,11 +772,11 @@ class Cpu:
 
         self.a = 0x00
         self.x = 0x00
-        self.y = 0x00
-        self.sp = 0xF6    # end of stack
+        self.y = 0x20
+        self.sp = 0xFC    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x47)
+        self.sr.from_byte(0x04)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -790,7 +797,9 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        self.data[0x0352] = 0x97
+        #self.data[0x0016] = 0x0C
+        self.data[0x0300] = 0xC0
+        self.data[0x0301] = 0x97
 
     def read(self, address):
         #if address == 0x7fe:
@@ -933,7 +942,7 @@ class Mapper071:
         if addr >= 0x8000 and addr <= 0xBFFF:
             return (self.selected_bank * 0x4000) | (addr & 0x3fff)
         elif addr >= 0xc000 and addr <= 0xffff:
-            return ((self.num_banks - 1) * 0x4000) | (addr & 0x3fff)
+            return ((self.num_banks -1) * 0x4000) | (addr & 0x3fff)
         return addr & 0x3fff
 
     def map_cpu_write(self, addr, data):
