@@ -60,40 +60,13 @@ class Nes:
         self.num_of_cycles = 1
 
         self.write_complete = False
-        self.odd_cycle_checked = False
         self.dma_data = 0x00
         self.dma_offset = 0x00
 
-        self.cpu_cycles_to_add = 0
         self.dummy_dma = True
-
-    """
-    def get_pressed_button(self):
-        for event in pygame.event.get(pygame.KEYDOWN):
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    self.apu.pressed_up()
-                elif event.key == pygame.K_DOWN:
-                    self.apu.pressed_down()
-                elif event.key == pygame.K_LEFT:
-                    self.apu.pressed_left()
-                    #print("key left - enable print")
-                    #self.c.enable_print = True
-                elif event.key == pygame.K_RIGHT:
-                    self.apu.pressed_right()
-                    #print("key right - disable print")
-                    #self.c.enable_print = False
-                elif event.key == pygame.K_RETURN:
-                    self.apu.pressed_start()
-                elif event.key == pygame.K_1:
-                    self.apu.select_pressed()
-    """
 
     def start(self):
         i=0
-        start = 0
-        stop = 0
-        num_c = 0
         even_cpu_cycle = False
         waited_cycles = 0
         #self.c.enable_print = True
@@ -101,64 +74,33 @@ class Nes:
         while True:
         #while i < 8000000:
             self.ppu.clock()
-            if self.bus.dma_request:
-                num_c += 1
-            #if self.bus.dma_request and self.dummy_dma:
-            #    print("ppu clock")
             if self.num_of_cycles % 3 == 0:
                 if self.bus.dma_request:
                     # before start we have to wait 1/2 idle cycles
                     if self.dummy_dma == True:
-                        #print("check 1  cyc:{}   cpu:{}  ppu:{}".format(self.num_of_cycles, self.c.clock_ticks, self.ppu.cycle))
                         if self.num_of_cycles % 2 == 1 and waited_cycles != 0:
-                            #print("start dma {}  clk:{}".format(self.c.clock_ticks, self.num_of_cycles))
-                            start = self.num_of_cycles
                             self.dummy_dma = False
                         else:
                             self.c.clock_ticks += 1
                             even_cpu_cycle = True
                             waited_cycles += 1
                     else:
-                        #print("dma request  cpu:{}   sys:{} ppu:{}".format(self.c.clock_ticks, self.num_of_cycles,
-                        #                                                   self.ppu.cycle))
-                        # suspend CPU, it takes 513/514 clock cycles
-                        #if self.write_complete == False:
-                        #    self.write_complete = True
-                        #elif self.odd_cycle_checked == False and self.c.clock_ticks % 2 == 1:
-                        #    self.odd_cycle_checked = True
-                        #    self.cpu_cycles_to_add += 1
-                        #else:
                         if self.num_of_cycles % 2 == 0:
-                            # read data
-                            addr = (self.bus.dma_high_byte << 8) | self.dma_offset
-                            #print("PPU OAM read from addr:{}".format(hex(addr)))
                             self.dma_data = self.c.read((self.bus.dma_high_byte << 8) | self.dma_offset)
                         else:
-                            # write data to ppu
-                            #print("PPU OAM write idx:{}   data:{}".format(self.dma_offset, hex(self.dma_data)))
                             self.ppu.write_oam_data(self.dma_offset, self.dma_data)
                             self.dma_offset += 1
                             if self.dma_offset > 0xff:
-                                self.cpu_cycles_to_add += 513
                                 self.bus.dma_request = False
                                 self.write_complete = False
-                                self.odd_cycle_checked = False
                                 self.dma_offset = 0x00
-                                #self.c.clock_ticks += self.cpu_cycles_to_add
-                                #print("add extra ticks: {}".format(self.cpu_cycles_to_add))
-                                self.cpu_cycles_to_add = 0
                                 self.dummy_dma = True
-                                stop = self.num_of_cycles
-                                #print("END DMA  clk:{}   ppu:{}   sl:{}   DIFF:{} num:{}".format(self.num_of_cycles, self.ppu.cycle, self.ppu.scanline, stop-start, num_c))
-                                num_c = 0
                                 waited_cycles = 0
                                 if even_cpu_cycle:
                                     self.c.clock_ticks += 1
                                 else:
                                     self.c.clock_ticks += 3
-
                                 even_cpu_cycle = False
-                                #self.ppu.cycle += 3
                         self.c.clock_ticks += 1
                 else:
                     self.c.clock()
