@@ -11,11 +11,12 @@ import numpy as np
 
 class Nes:
     def __init__(self, screen):
+
         # MAPPER 0
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
-        self.cartridge = cpu.Cardrige("tests/mario-bros.nes")
+        self.cartridge = cpu.Cardrige("tests/pegasus/super-mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
-        #self.cartridge = cpu.Cardrige("tests/ice-climber.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
 
         # MAPPER 1
@@ -36,7 +37,7 @@ class Nes:
         # MAPPER 71
         #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
         #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
-        #self.cartridge = cpu.Cardrige("tests/big-nose-cave-man.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/big-nose-caveman.nes")
         #self.cartridge = cpu.Cardrige("tests/ultimate-Stuntman.nes")
         #self.cartridge = cpu.Cardrige("tests/micro-machines.nes")
 
@@ -46,8 +47,8 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/robin-hood.nes")
 
         self.screen = screen
-        #self.ppu = ppu.Ppu(screen, self.cartridge)
-        self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
+        self.ppu = ppu.Ppu(screen, self.cartridge)
+        #self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()
@@ -67,9 +68,7 @@ class Nes:
 
     def start(self):
         i=0
-        even_cpu_cycle = False
-        waited_cycles = 0
-        #self.c.enable_print = True
+        self.c.enable_print = True
 
         while True:
         #while i < 8000000:
@@ -78,14 +77,12 @@ class Nes:
                 if self.bus.dma_request:
                     # before start we have to wait 1/2 idle cycles
                     if self.dummy_dma == True:
-                        if self.num_of_cycles % 2 == 1 and waited_cycles != 0:
+                        if self.c.clock_ticks % 2 == 0:
                             self.dummy_dma = False
                         else:
                             self.c.clock_ticks += 1
-                            even_cpu_cycle = True
-                            waited_cycles += 1
                     else:
-                        if self.num_of_cycles % 2 == 0:
+                        if self.c.clock_ticks % 2 == 0:
                             self.dma_data = self.c.read((self.bus.dma_high_byte << 8) | self.dma_offset)
                         else:
                             self.ppu.write_oam_data(self.dma_offset, self.dma_data)
@@ -95,26 +92,19 @@ class Nes:
                                 self.write_complete = False
                                 self.dma_offset = 0x00
                                 self.dummy_dma = True
-                                waited_cycles = 0
-                                if even_cpu_cycle:
-                                    self.c.clock_ticks += 1
-                                else:
-                                    self.c.clock_ticks += 3
-                                even_cpu_cycle = False
+                                self.c.clock_ticks += 1
                         self.c.clock_ticks += 1
                 else:
                     self.c.clock()
 
-            if self.ppu.raise_nmi:# and self.c.new_instruction:
-                #print("NMI request cyc:{}".format(self.c.clock_ticks))
+            if self.ppu.raise_nmi and self.c.cycles_left_to_perform_current_instruction != 0:
                 self.c.nmi()
                 if self.c.enable_print:
                     fh = open("log.txt", "a")
-                    fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks))
+                    fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks-1))
                     fh.close()
                 self.ppu.raise_nmi = False
-                #print("[NMI - Cycle: {}]".format(self.c.clock_ticks))
-                #self.ppu.cycle += 21
+                self.ppu.cycle += 21
 
                 #self.screen.update(self.ppu.get_frame_data())
                 #self.screen.update(self.ppu.screen_data)

@@ -342,9 +342,9 @@ class Cpu:
         self.instructions[0x81] = Sta(self, AddressModeIndirectX(self))
         self.instructions[0x85] = Sta(self, AddressModeZeroPage(self))
         self.instructions[0x8D] = Sta(self, AddressModeAbsolute(self))
-        self.instructions[0x91] = Sta(self, AddressModeIndirectY(self, 6))
+        self.instructions[0x91] = Sta(self, AddressModeIndirectY(self, 6, False))
         self.instructions[0x95] = Sta(self, AddressModeZeroPageXIndexed(self, 4))
-        self.instructions[0x99] = Sta(self, AddressModeAbsoluteYIndexed(self, 5))
+        self.instructions[0x99] = Sta(self, AddressModeAbsoluteYIndexed(self, 5, False))
         self.instructions[0x9D] = Sta(self, AddressModeAbsoluteXIndexed(self, 5, False))
 
         self.instructions[0x86] = Stx(self, AddressModeZeroPage(self))
@@ -669,6 +669,7 @@ class Cpu:
         self.cycles_left_to_perform_current_instruction = 0
         self.new_instruction = False
         self.enable_print = False
+        self.clk = 0
 
     def dbg_inst_bytes(self, i_size):
         b = ""
@@ -738,6 +739,7 @@ class Cpu:
             self.new_instruction = False
 
         self.cycles_left_to_perform_current_instruction -= 1
+        self.clk += 1
 
     def read(self, address, num_bytes=1):
         return self.bus.read(address)
@@ -763,6 +765,7 @@ class Cpu:
 
     def reset(self):
         self.clock_ticks = 8
+        self.clk = 8
         self.pc = 0xFFFC
 
         ll = self.read(self.pc + 0)
@@ -770,13 +773,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x00
+        self.a = 0x90
         self.x = 0x00
-        self.y = 0x20
+        self.y = 0x04
         self.sp = 0xFC    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x04)
+        self.sr.from_byte(0x85)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -791,15 +794,16 @@ class Cpu:
         self.pc = (hh << 8) | ll
         self.sr.i = 1
         self.clock_ticks += 7
+        self.clk += 7
 
 
 class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        #self.data[0x0016] = 0x0C
-        self.data[0x0300] = 0xC0
-        self.data[0x0301] = 0x97
+        self.data[0x07FF] = 0xA5
+        #self.data[0x0300] = 0xC0
+        #self.data[0x0301] = 0x97
 
     def read(self, address):
         #if address == 0x7fe:
