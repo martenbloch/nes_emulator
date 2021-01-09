@@ -24,7 +24,7 @@ class Nes:
 
         # MAPPER 2
         #self.cartridge = cpu.Cardrige("tests/duck-tale-2.nes")
-        #self.cartridge = cpu.Cardrige("tests/Contra.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/contra.nes")
         #self.cartridge = cpu.Cardrige("tests/Castlevania.nes")
 
         # MAPPER 4
@@ -35,7 +35,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/ballon-fight.nes")
 
         # MAPPER 71
-        #self.cartridge = cpu.Cardrige("tests/dizzy-adventure.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/dizzy.nes")
         #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/big-nose-caveman.nes")
         #self.cartridge = cpu.Cardrige("tests/ultimate-Stuntman.nes")
@@ -47,8 +47,8 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/robin-hood.nes")
 
         self.screen = screen
-        #self.ppu = ppu.Ppu(screen, self.cartridge)
-        self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
+        self.ppu = ppu.Ppu(screen, self.cartridge)
+        #self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()
@@ -104,7 +104,7 @@ class Nes:
                     fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks-1))
                     fh.close()
                 self.ppu.raise_nmi = False
-                #self.ppu.cycle += 21
+                self.ppu.cycle += 21
 
                 #self.screen.update(self.ppu.get_frame_data())
                 #self.screen.update(self.ppu.screen_data)

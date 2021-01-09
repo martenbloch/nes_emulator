@@ -616,10 +616,17 @@ class Ppu:
         elif address == 0x2:
 
             if self.sprite_zero_hit:
-                self.status = self.status | (1 << 6)
+                if self.scanline == 260 and self.cycle + 9 >= 341:
+                    self.status &= 0xBF
+                else:
+                    self.status = self.status | (1 << 6)
                 # print("Zero hit in status")
+            else:
+                self.status &= 0xBF
 
             val = self.last_written_data & 0x1f | self.status & 0xe0
+
+            #print("PPU 2002 data:{:02X}".format(val))
             # val = self.read_buffer & 0x1f | self.status & 0xe0
             # val = self.status
             # print("PPU STATUS read 0x2002 val:{}".format(hex(val)))
