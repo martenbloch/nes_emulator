@@ -736,6 +736,16 @@ uint8_t Ppu::readOamData(uint8_t address)
     return 0x0;
 }
 
+uint16_t Ppu::getCycle()
+{
+    return m_cycle;
+}
+
+int Ppu::getScanline()
+{
+    return m_scanline;
+}
+
 void Ppu::clock() 
 {
     if (m_scanline == -1) 

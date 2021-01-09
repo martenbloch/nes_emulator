@@ -27,6 +27,14 @@ class PpuCpp(object):
     def raise_nmi(self):
         return lib.ppu_is_nmi_raised(self.obj)
 
+    @property
+    def cycle(self):
+        return lib.ppu_get_cycle(self.obj)
+
+    @property
+    def scanline(self):
+        return lib.ppu_get_scanline(self.obj)
+
     @raise_nmi.setter
     def raise_nmi(self, value):
         lib.ppu_clear_nmi(self.obj)

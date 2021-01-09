@@ -24,6 +24,16 @@ extern "C" {
         ppu->isNmiRaised();
     }
 
+    uint16_t ppu_get_cycle(Ppu* ppu)
+    {
+        return ppu->getCycle();
+    }
+    
+    int ppu_get_scanline(Ppu* ppu)
+    {
+        return ppu->getScanline();
+    }
+
     void ppu_clear_nmi(Ppu* ppu)
     {
         ppu->clearNmi();

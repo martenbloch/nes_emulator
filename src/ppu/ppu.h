@@ -135,6 +135,8 @@ class Ppu
         bool bgRenderingEnabled();
         void writeOamData(uint8_t address, uint8_t data);
         uint8_t readOamData(uint8_t address);
+        uint16_t getCycle();
+        int getScanline();
 
     private:
         uint16_t m_cycle;
