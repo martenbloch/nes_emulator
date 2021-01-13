@@ -562,6 +562,7 @@ void Ppu::write(uint16_t address, uint8_t data)
     }
     else if(address == 0x7)
     {
+        m_lastWrittenData = data;
         if(m_currAddr.vramAddr >= 0x2000 && m_currAddr.vramAddr <= 0x3eff)
         {
             uint16_t index = m_currAddr.vramAddr & 0x3ff;

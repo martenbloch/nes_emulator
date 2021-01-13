@@ -307,6 +307,8 @@ class Ppu:
         self.attr_low = ShiftRegister(16)
         self.attr_high = ShiftRegister(16)
 
+        self.sprite_zero_hit_pos = -1
+
     def clear_secondary_oam(self):
         self.secondary_oam = [OamData() for i in range(8)]
 
@@ -393,8 +395,21 @@ class Ppu:
                 low = int('{:08b}'.format(low)[::-1], 2)
                 upper = int('{:08b}'.format(upper)[::-1], 2)
 
-
-
+            """
+            if i == 0:
+                self.sprite_zero_hit_pos = -1
+                # determine sprite zero hit
+                l = ShiftRegister(8, low)
+                h = ShiftRegister(8, upper)
+                for j in range(8):
+                    lb = l.shift()
+                    hb = h.shift()
+                    color = lb | (hb << 1)
+                    if color != 0:
+                        print("sprite zero hit pos:{}".format(j + sprite.x))
+                        self.sprite_zero_hit_pos = j + sprite.x
+                        break
+            """
             self.secondary_oam_l[i] = ShiftRegister(8, low)
             self.secondary_oam_h[i] = ShiftRegister(8, upper)
 
@@ -622,6 +637,9 @@ class Ppu:
                     self.status = self.status | (1 << 6)
                 # print("Zero hit in status")
             else:
+                #if self.sprite_zero_hit_pos != -1 and (self.cycle + 9) > self.sprite_zero_hit_pos:
+                #    self.status = self.status | (1 << 6)
+                #else:
                 self.status &= 0xBF
 
             val = self.last_written_data & 0x1f | self.status & 0xe0
@@ -794,6 +812,7 @@ class Ppu:
             return
 
         elif address == 0x7:
+            self.last_written_data = data
             if self.vram_addr >= 0x2000 and self.vram_addr <= 0x3eff:
                 index = self.vram_addr & 0x3ff
                 if self.cardridge.mirroring == 0:  # horizontal
@@ -930,6 +949,9 @@ class ShiftRegister:
         b = (self.value & self.mask) >> self.len
         self.value <<= 1
         return b
+
+    def get_value(self):
+        return (self.value & self.mask) >> self.len
 
     def write(self, value):
         self.value = value
