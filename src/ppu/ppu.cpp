@@ -175,7 +175,8 @@ Ppu::Ppu(uint8_t* patternTableData, uint16_t len, uint8_t mirroring)
  m_secondaryOamAttrBytes{{8, 8, 8, 8, 8, 8, 8, 8}},
  m_sh{TileHelper(0x0000,0x0000), TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000)},
  m_nextAttribDataH{0x0000, 0x0000},
- m_nextAttribData{0x00}
+ m_nextAttribData{0x00},
+ m_vblankRead{false}
 {
     m_chr.assign(patternTableData, patternTableData + len);
 
@@ -617,7 +618,29 @@ uint8_t Ppu::read(uint16_t address)
     address &= 0x7;
     if(address == 0x2)
     {
-        //std::cout << "mask: " << std::hex << int(m_status.toByte()) << std::endl;
+        // fix sprite zero hit timing
+        if(m_status.spriteZeroHit)
+        {
+            if(m_scanline == 260 && (m_cycle + 9) >= 341)
+                m_status.spriteZeroHit = false;
+        }
+
+        // handle race condition in VBLANK reading
+        if(((m_cycle + 9) == 341) && m_scanline == 240)
+            m_vblankRead = true;
+
+        // handle vblank timing due to simplified CPU emulation
+        if(m_cycle == 0 && m_scanline == 241)
+        {
+            m_vblankRead = true;
+            m_status.verticalBlank = true;
+        }
+        if((m_cycle + 9) > 341 && m_scanline == 240)
+        {
+            m_vblankRead = true;
+            m_status.verticalBlank = true;
+        }
+
         uint8_t val = m_lastWrittenData & 0x1f | m_status.toByte() & 0xe0;
         m_status.verticalBlank = false;
         m_addressLatch = 0;
@@ -754,6 +777,7 @@ void Ppu::clock()
         if (m_cycle == 1) {
             m_status.verticalBlank = false;
             m_status.spriteZeroHit = false;
+            m_vblankRead = false;
         }
         else if(m_cycle >= 280 && m_cycle <= 304) {
             if((m_tmpAddr.baseNameTable & 0x800) == 0x800)
@@ -865,9 +889,10 @@ void Ppu::clock()
         m_frameCnt += 1;
     else if(m_scanline == 241 && m_cycle == 1)
     {
-        m_status.verticalBlank = true;
         if(m_ctrl.generateNmi)
             m_raiseNmi = true;
+        if(m_vblankRead == false)
+            m_status.verticalBlank = true;
     }
 
 

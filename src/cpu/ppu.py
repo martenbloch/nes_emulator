@@ -309,6 +309,8 @@ class Ppu:
 
         self.sprite_zero_hit_pos = -1
 
+        self.vblank_read = False
+
     def clear_secondary_oam(self):
         self.secondary_oam = [OamData() for i in range(8)]
 
@@ -485,6 +487,7 @@ class Ppu:
             if self.cycle == 1:
                 self.status &= 0x7F
                 self.sprite_zero_hit = False
+                self.vblank_read = False
 
             elif 280 <= self.cycle <= 304:
                 if self.tmp_addr.base_name_table & 0x800 == 0x800:
@@ -610,9 +613,13 @@ class Ppu:
             self.frame_cnt += 1
 
         elif self.scanline == 241 and self.cycle == 1:
-            self.status = self.status | (1 << 7)
             if self.enable_nmi:
                 self.raise_nmi = True
+            if self.vblank_read == False:
+                self.status = self.status | (1 << 7)
+            else:
+                print("skip vblank")
+                self.vblank_read == True
 
         self.cycle += 1
         if self.cycle == 341:
@@ -641,6 +648,17 @@ class Ppu:
                 #    self.status = self.status | (1 << 6)
                 #else:
                 self.status &= 0xBF
+
+            # handle race condition in VBLANK reading
+            if ((self.cycle + 9) == 341) and self.scanline == 240:
+                print("handle race condition {}    {}".format(self.cycle, self.scanline))
+                self.vblank_read = True
+            if self.cycle == 0 and self.scanline == 241:
+                self.vblank_read = True
+                self.status = self.status | (1 << 7)
+            if self.cycle + 9 > 341 and self.scanline == 240:
+                self.vblank_read = True
+                self.status = self.status | (1 << 7)
 
             val = self.last_written_data & 0x1f | self.status & 0xe0
 
