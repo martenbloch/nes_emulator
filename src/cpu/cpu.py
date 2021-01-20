@@ -773,13 +773,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x90
-        self.x = 0x00
-        self.y = 0x04
+        self.a = 0x00
+        self.x = 0x07
+        self.y = 0x00
         self.sp = 0xFC    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x85)
+        self.sr.from_byte(0x04)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -802,8 +802,8 @@ class RamMemory:
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
         self.data[0x07FF] = 0xA5
-        #self.data[0x0300] = 0xC0
-        #self.data[0x0301] = 0x97
+        self.data[0x0300] = 0xC0
+        self.data[0x0301] = 0x97
 
     def read(self, address):
         #if address == 0x7fe:
@@ -933,8 +933,7 @@ class Mapper002:
     def map_cpu_write(self, addr, data):
         if addr >= 0x8000 and addr <= 0xffff:
             self.selected_bank = data & 0xF
-            return -1
-        return addr
+        return -1
 
 
 class Mapper071:
@@ -952,8 +951,7 @@ class Mapper071:
     def map_cpu_write(self, addr, data):
         if addr >= 0xC000 and addr <= 0xffff:
             self.selected_bank = data & 0xF
-            return -1
-        return addr
+        return -1
 
 
 class Apu:
