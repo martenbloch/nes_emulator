@@ -14,7 +14,7 @@ class Nes:
 
         # MAPPER 0
         #self.cartridge = cpu.Cardrige("tests/nestest.nes")
-        self.cartridge = cpu.Cardrige("tests/pegasus/super-mario-bros.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/super-mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/ice-climber.nes")
         #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
@@ -36,10 +36,10 @@ class Nes:
 
         # MAPPER 71
         #self.cartridge = cpu.Cardrige("tests/pegasus/dizzy.nes")
-        #self.cartridge = cpu.Cardrige("tests/big-nose-freaks-out.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/big-nose-freaks-out.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/big-nose-caveman.nes")
-        #self.cartridge = cpu.Cardrige("tests/ultimate-Stuntman.nes")
-        #self.cartridge = cpu.Cardrige("tests/micro-machines.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/ultimate-stuntman.nes")
+        self.cartridge = cpu.Cardrige("tests/pegasus/micro-machines.nes")
 
         # MAPPER 232
         #self.cartridge = cpu.Cardrige("tests/quattro-adventure-1.nes")

@@ -773,13 +773,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x00
-        self.x = 0x07
-        self.y = 0x00
-        self.sp = 0xFC    # end of stack
+        self.a = 0x0D
+        self.x = 0x0D
+        self.y = 0x40
+        self.sp = 0xF7    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x04)
+        self.sr.from_byte(0x05)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
