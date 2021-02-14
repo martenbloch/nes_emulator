@@ -312,6 +312,8 @@ class Ppu:
         self.vblank_read = False
         self.vblank_flag_read = False
 
+        self.fine_x = 0x0
+
     def clear_secondary_oam(self):
         self.secondary_oam = [OamData() for i in range(8)]
 
@@ -428,6 +430,24 @@ class Ppu:
             address = 0x000C
 
         return self.palette_ram[address & 0xff]
+
+    def print_name_tables(self):
+        print("NT 0")
+        print(self.print_table(self.name_table_0))
+        print("NT 1")
+        print(self.print_table(self.name_table_0))
+
+    def print_table(self, table):
+        cnt = 0
+        table = self.name_table_0
+        text = ""
+        for i in range(30):
+            line = ""
+            for j in range(32):
+                line += "{:02X}  ".format(table[cnt])
+                cnt += 1
+            text += line + "\n"
+        return text
 
     def read_video_mem(self, address):
         if 0x2000 <= address <= 0x3eff:
@@ -585,8 +605,18 @@ class Ppu:
                         self.attr_high.write(v)
 
                 if 1 <= self.cycle <= 336:
-                    self.bg_pixel = self.shiftRegister1.shift() | (self.shiftRegister2.shift() << 1)
-                    self.pallete_idx = self.attr_low.shift() | (self.attr_high.shift() << 1)
+                    bit_select = 0x8000 >> self.fine_x
+                    self.shiftRegister1.shift()
+                    self.shiftRegister2.shift()
+                    b1 = int((self.shiftRegister1.value & bit_select) > 0)
+                    b2 = int((self.shiftRegister2.value & bit_select) > 0)
+                    self.bg_pixel = b1 | (b2 << 1)
+
+                    self.attr_low.shift()
+                    self.attr_high.shift()
+                    b1 = int((self.attr_low.value & bit_select) > 0)
+                    b2 = int((self.attr_high.value & bit_select) > 0)
+                    self.pallete_idx = b1 | (b2 << 1)
                     idx = (self.read_video_mem(0x3F00 + (self.pallete_idx << 2) + self.bg_pixel)) & 0x3f
 
                     if 1 <= self.cycle <= 256:
@@ -801,6 +831,8 @@ class Ppu:
                 self.show_sprite = False
 
             return
+        elif address == 0x2:
+            return
         elif address == 0x3:
             self.last_written_data = data
             self.oam_addr = data
@@ -817,10 +849,10 @@ class Ppu:
             if self.address_latch == 0:
                 self.address_latch = 1
                 self.tmp_addr.scroll_x(data)
+                self.fine_x = data & 0x7
             else:
                 self.address_latch = 0
                 self.tmp_addr.scroll_y(data)
-            # print("PPU SCROLL write:{}".format(hex(data)))
             return
         elif address == 0x6:
             self.last_written_data = data
@@ -955,7 +987,7 @@ class VramRegister:
             self.base_name_table = 0x2C00
 
     def scroll_x(self, px_num):  # 0-255
-        self.tile_x = px_num // 8
+        self.tile_x = px_num >> 3
 
     def scroll_y(self, px_num):  # 0 - 239
         self.tile_y = px_num // 8

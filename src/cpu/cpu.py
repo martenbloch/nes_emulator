@@ -773,13 +773,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x0D
-        self.x = 0x0D
-        self.y = 0x40
-        self.sp = 0xF7    # end of stack
+        self.a = 0x87
+        self.x = 0x00
+        self.y = 0xFF
+        self.sp = 0xFC    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x05)
+        self.sr.from_byte(0x85)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -801,9 +801,22 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        self.data[0x07FF] = 0xA5
-        self.data[0x0300] = 0xC0
-        self.data[0x0301] = 0x97
+        self.data[0x07F0] = 0xF0
+        self.data[0x07F1] = 0xF1
+        self.data[0x07F2] = 0xF2
+        self.data[0x07F3] = 0xF3
+        self.data[0x07F4] = 0xF4
+        self.data[0x07F5] = 0xF5
+        self.data[0x07F6] = 0xF6
+        self.data[0x07F7] = 0xF7
+        self.data[0x07F8] = 0xF8
+        self.data[0x07F9] = 0xF9
+        self.data[0x07FA] = 0xFA
+        self.data[0x07FB] = 0xFB
+        self.data[0x07FC] = 0xFC
+        self.data[0x07FD] = 0xFD
+        self.data[0x07FE] = 0xFE
+        self.data[0x07FF] = 0xFF
 
     def read(self, address):
         #if address == 0x7fe:
@@ -870,6 +883,7 @@ class Cardrige:
             self.mapper = Mapper071(prg_size)
         else:
             raise NotImplementedError("unknown mapper id:{}".format(mapperId))
+        pass
 
     def read(self, address, num_bytes=1):
         #mapped_addr = self.mapper.map_cpu_address(address)

@@ -176,7 +176,8 @@ Ppu::Ppu(uint8_t* patternTableData, uint16_t len, uint8_t mirroring)
  m_sh{TileHelper(0x0000,0x0000), TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000),TileHelper(0x0000,0x0000)},
  m_nextAttribDataH{0x0000, 0x0000},
  m_nextAttribData{0x00},
- m_vblankRead{false}
+ m_vblankRead{false},
+ m_fineX{0x0}
 {
     m_chr.assign(patternTableData, patternTableData + len);
 
@@ -535,6 +536,7 @@ void Ppu::write(uint16_t address, uint8_t data)
         {
             m_addressLatch = 1;
             m_tmpAddr.scrollX(data);
+            m_fineX = data & 0x7;
         }
         else
         {
@@ -852,8 +854,8 @@ void Ppu::clock()
             }
             if(m_cycle >=1 && m_cycle <= 336)
             {
-                m_bgPixel = m_th.shift();
-                m_paletteIdx = m_nextAttribDataH.shift();
+                m_bgPixel = m_th.shiftBitSelect(m_fineX);
+                m_paletteIdx = m_nextAttribDataH.shiftBitSelect(m_fineX);
                 if(m_cycle >=1 && m_cycle <= 256)
                 {
                     uint8_t idx = (readVideoMem(0x3F00 + (m_paletteIdx << 2) + m_bgPixel)) & 0x3f;

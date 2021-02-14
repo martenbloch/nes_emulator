@@ -89,6 +89,17 @@ class TileHelper
             return (b2 << 1) | b1;
         }
 
+        uint8_t shiftBitSelect(uint8_t fineX)
+        {
+            m_lower <<= 1;
+            m_upper <<= 1;
+
+            uint16_t bitSelect = (0x8000 >> fineX);
+            uint8_t b1 = (m_lower & bitSelect) > 0;
+            uint8_t b2 = (m_upper & bitSelect) > 0;
+            return (b2 << 1) | b1;
+        }
+
 
     private:
         uint16_t m_lower;
@@ -198,6 +209,7 @@ class Ppu
         TileHelper m_nextAttribDataH;
         uint8_t m_nextAttribData;
         bool m_vblankRead;
+        uint8_t m_fineX;
 
         uint8_t readVideoMem(uint16_t address);
         TileRow getTileData(uint8_t tileNum, uint8_t row, uint8_t half);

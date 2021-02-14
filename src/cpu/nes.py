@@ -23,7 +23,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/darkwing-duck.nes")
 
         # MAPPER 2
-        #self.cartridge = cpu.Cardrige("tests/duck-tale-2.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/duck-tale-2.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/contra.nes")
         #self.cartridge = cpu.Cardrige("tests/Castlevania.nes")
 
@@ -35,20 +35,20 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/ballon-fight.nes")
 
         # MAPPER 71
-        #self.cartridge = cpu.Cardrige("tests/pegasus/dizzy.nes")
+        self.cartridge = cpu.Cardrige("tests/pegasus/dizzy.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/big-nose-freaks-out.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/big-nose-caveman.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/ultimate-stuntman.nes")
-        self.cartridge = cpu.Cardrige("tests/pegasus/micro-machines.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/micro-machines.nes")
 
         # MAPPER 232
-        #self.cartridge = cpu.Cardrige("tests/quattro-adventure-1.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/quattro-arcade.nes")
         #self.cartridge = cpu.Cardrige("tests/quatro-arcade.nes")
-        #self.cartridge = cpu.Cardrige("tests/robin-hood.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/robin.nes")
 
         self.screen = screen
-        self.ppu = ppu.Ppu(screen, self.cartridge)
-        #self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
+        #self.ppu = ppu.Ppu(screen, self.cartridge)
+        self.ppu = ppu_cpp.PpuCpp(self.cartridge.chr, self.cartridge.mirroring)
         self.bus = cpu.Bus()
         self.c = cpu.Cpu(self.bus, 0xC000)
         self.ram = cpu.RamMemory()
@@ -68,7 +68,7 @@ class Nes:
 
     def start(self):
         i=0
-        self.c.enable_print = True
+        #self.c.enable_print = True
 
         while True:
         #while i < 8000000:
@@ -104,7 +104,7 @@ class Nes:
                     fh.write("[NMI - Cycle: {}]\r\n".format(self.c.clock_ticks-1))
                     fh.close()
                 self.ppu.raise_nmi = False
-                self.ppu.cycle += 21
+                #self.ppu.cycle += 21
 
                 #self.screen.update(self.ppu.get_frame_data())
                 #self.screen.update(self.ppu.screen_data)
