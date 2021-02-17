@@ -17,7 +17,7 @@ class Nes:
         #self.cartridge = cpu.Cardrige("tests/pegasus/super-mario-bros.nes")
         #self.cartridge = cpu.Cardrige("tests/donkey.nes")
         #self.cartridge = cpu.Cardrige("tests/pegasus/ice-climber.nes")
-        #self.cartridge = cpu.Cardrige("tests/tank1990.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/tank1990.nes")
 
         # MAPPER 1
         #self.cartridge = cpu.Cardrige("tests/darkwing-duck.nes")
@@ -43,8 +43,8 @@ class Nes:
 
         # MAPPER 232
         #self.cartridge = cpu.Cardrige("tests/pegasus/quattro-arcade.nes")
-        #self.cartridge = cpu.Cardrige("tests/quatro-arcade.nes")
-        #self.cartridge = cpu.Cardrige("tests/pegasus/robin.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/quattro-a.nes")
+        #self.cartridge = cpu.Cardrige("tests/pegasus/srh.nes")
 
         self.screen = screen
         #self.ppu = ppu.Ppu(screen, self.cartridge)
@@ -68,7 +68,7 @@ class Nes:
 
     def start(self):
         i=0
-        #self.c.enable_print = True
+        self.c.enable_print = True
 
         while True:
         #while i < 8000000:

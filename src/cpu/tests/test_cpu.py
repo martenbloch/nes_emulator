@@ -511,3 +511,41 @@ def test_rol_case_5():
 
     assert 0x20 == cpu_mock.a
     assert 0x85 == status_register.to_byte()
+
+
+def test_bit_case_1():
+
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x04)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x40
+    cpu_mock.read.return_value = 0x00
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    and_instr = cpu.Bit(cpu_mock, addr_mode_mock)
+    and_instr.execute()
+
+    assert 0x06 == status_register.to_byte()
+
+
+def test_bit_case_2():
+
+    status_register = cpu.StatusRegister()
+    status_register.from_byte(0x06)
+
+    cpu_mock = Mock()
+    cpu_mock.a = 0x40
+    cpu_mock.read.return_value = 0x40
+    cpu_mock.read()
+    cpu_mock.sr = status_register
+
+    addr_mode_mock = Mock()
+
+    and_instr = cpu.Bit(cpu_mock, addr_mode_mock)
+    and_instr.execute()
+
+    assert 0x44 == status_register.to_byte()

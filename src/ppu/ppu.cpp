@@ -442,7 +442,7 @@ void Ppu::decrementSpriteXCounters()
 
             m_secondaryOamNumPixelToDraw[i] -= 1;
 
-            if(!m_status.spriteZeroHit && i == 0 && color != 0 && m_bgPixel != 0)
+            if(!m_status.spriteZeroHit && m_oam[0].tile_num == m_secondaryOam[i].tile_num && color != 0 && m_bgPixel != 0)
             {
                 m_status.spriteZeroHit = true;
             }

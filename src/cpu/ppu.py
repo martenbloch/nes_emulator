@@ -366,7 +366,10 @@ class Ppu:
 
                 self.secondary_oam_num_pixel_to_draw[i] -= 1
 
-                if not self.sprite_zero_hit and i == 0 and color != 0 and self.bg_pixel != 0:
+
+                if not self.sprite_zero_hit and self.oam[0].tile_num == self.secondary_oam[i].tile_num and color != 0 and self.bg_pixel != 0 and self.render_background == True:
+                #if not self.sprite_zero_hit and i == 0 and color != 0 and self.bg_pixel != 0 and self.render_background == True:
+                    print("Sprite zero hit at cyc:{}   sn:{} tileNmu:{}    x:{}    y:{}".format(self.cycle, self.scanline, self.secondary_oam[0].tile_num, self.secondary_oam[0].x, self.secondary_oam[0].y))
                     self.sprite_zero_hit = True
 
     def fill_sprites_shift_registers(self, y):
@@ -474,7 +477,9 @@ class Ppu:
             return self.cardridge.chr[address]
             #return self.cardridge.chr[self.vram_addr]
         else:
-            raise NotImplementedError("video ram read for address:{:X}".format(address))
+            #raise NotImplementedError("video ram read for address:{:X}".format(address))
+            print("video ram read for address:{:X}".format(address))
+            return
         return
 
     def write_video_mem(self, address, data):
@@ -510,6 +515,7 @@ class Ppu:
                 self.sprite_zero_hit = False
                 self.vblank_read = False
                 self.vblank_flag_read = False
+                print("CYC:{}   SN:{}   clear sprite0hit".format(self.cycle, self.scanline))
 
             elif 280 <= self.cycle <= 304:
                 if self.tmp_addr.base_name_table & 0x800 == 0x800:
@@ -671,10 +677,10 @@ class Ppu:
         elif address == 0x2:
 
             if self.sprite_zero_hit:
-                if self.scanline == 260 and self.cycle + 9 >= 341:
-                    self.status &= 0xBF
-                else:
-                    self.status = self.status | (1 << 6)
+                #if self.scanline == 260 and self.cycle + 9 >= 341:
+                #    self.status &= 0xBF
+                #else:
+                self.status = self.status | (1 << 6)
                 # print("Zero hit in status")
             else:
                 #if self.sprite_zero_hit_pos != -1 and (self.cycle + 9) > self.sprite_zero_hit_pos:
@@ -820,10 +826,12 @@ class Ppu:
                 # print("Schedule Enable background rendering!")
                 # self.enable_bg_render = True
                 self.render_background = True
+                print("enable BG")
             else:
                 # self.render_background = False
                 # self.enable_bg_render = False
                 self.render_background = False
+                print("disable BG")
 
             if data & 0x10:
                 self.show_sprite = True

@@ -367,6 +367,9 @@ class Cpu:
 
         self.instructions[0x98] = Tya(self, AddressModeImplied())
 
+        self.exec_bit_ins = False
+        self.log_msg = ""
+        self.cpu_msg = ""
 
         '''
         self.instructions = {
@@ -700,6 +703,20 @@ class Cpu:
         return ((len(b) * "${:02X} ").format(*b)).ljust(12, " ")
 
     def clock(self):
+
+        if self.cycles_left_to_perform_current_instruction == 1 and self.exec_bit_ins == True:
+            self.exec_bit_ins = False
+            self.instructions[0x2c].execute()
+            if self.enable_print:
+                log_msg = self.log_msg
+                log_msg += ascii(self.instructions[0x2c])
+                log_msg += self.cpu_msg
+                fh = open("log.txt", "a")
+                fh.write(log_msg)
+                fh.close()
+                self.log_msg = ""
+                self.cpu_msg = ""
+
         if self.cycles_left_to_perform_current_instruction == 0:
             self.new_instruction = True
             log_msg = ""
@@ -724,15 +741,22 @@ class Cpu:
                 cpu_state_before += "\r\n"
             self.pc += 1
 
-            self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
+            if instruction == 0x2c:
+                self.cycles_left_to_perform_current_instruction = 4
+                self.exec_bit_ins = True
+            else:
+                self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
 
-            if self.enable_print:
+            if self.enable_print and self.exec_bit_ins == False:
                 log_msg += ascii(self.instructions[instruction])
                 log_msg += cpu_state_before
                 #print(log_msg)
                 fh = open("log.txt", "a")
                 fh.write(log_msg)
                 fh.close()
+            if self.enable_print and self.exec_bit_ins == True:
+                self.log_msg = log_msg
+                self.cpu_msg = cpu_state_before
 
             self.clock_ticks += self.cycles_left_to_perform_current_instruction
         else:
@@ -773,13 +797,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x87
-        self.x = 0x00
-        self.y = 0xFF
-        self.sp = 0xFC    # end of stack
+        self.a = 0x00
+        self.x = 0x23
+        self.y = 0x00
+        self.sp = 0xFA    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x85)
+        self.sr.from_byte(0x07)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -801,22 +825,8 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        self.data[0x07F0] = 0xF0
-        self.data[0x07F1] = 0xF1
-        self.data[0x07F2] = 0xF2
-        self.data[0x07F3] = 0xF3
-        self.data[0x07F4] = 0xF4
-        self.data[0x07F5] = 0xF5
-        self.data[0x07F6] = 0xF6
-        self.data[0x07F7] = 0xF7
-        self.data[0x07F8] = 0xF8
-        self.data[0x07F9] = 0xF9
-        self.data[0x07FA] = 0xFA
-        self.data[0x07FB] = 0xFB
-        self.data[0x07FC] = 0xFC
-        self.data[0x07FD] = 0xFD
-        self.data[0x07FE] = 0xFE
-        self.data[0x07FF] = 0xFF
+        self.data[0x0746] = 0x80
+        self.data[0x0747] = 0x97
 
     def read(self, address):
         #if address == 0x7fe:
