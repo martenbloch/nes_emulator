@@ -320,6 +320,7 @@ Ppu::Ppu(uint8_t* patternTableData, uint16_t len, uint8_t mirroring)
 
 uint8_t Ppu::readVideoMem(uint16_t address)
 {
+    address &= 0x3FFF;
     if(address >= 0x2000 && address <= 0x3eff)
     {
         uint16_t index{static_cast<uint16_t>(address & 0x03ff)};

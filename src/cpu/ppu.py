@@ -244,10 +244,6 @@ class Ppu:
         self.palette[0x3E] = 0x000000
         self.palette[0x3F] = 0x000000
 
-        #for i in range(len(self.palette)):
-        #    c = self.palette[i]
-        #    print("self.palette[0x{:02X}] = 0x{:06X}".format(i, c[0] << 16 | c[1] << 8 | c[2]))
-
         self.shiftRegister1 = ShiftRegister(16)
         self.shiftRegister2 = ShiftRegister(16)
         self.next_tile_idx = 2
@@ -327,7 +323,6 @@ class Ppu:
 
         for i in range(64):
             if self.oam[i].y <= y < self.oam[i].y + n:
-                #print("add sprite y:{} oam:{}".format(y, ascii(self.oam[i])))
                 self.secondary_oam[self.num_secondary_sprites] = self.oam[i]
                 self.secondary_oam_x_counter[self.num_secondary_sprites] = self.oam[i].x
                 self.secondary_oam_attr_bytes[self.num_secondary_sprites] = self.oam[i].attr
@@ -337,8 +332,6 @@ class Ppu:
                 # msg += ascii(self.oam[i])
                 if self.num_secondary_sprites == 8:
                     break
-        # if cnt != 0:
-        #    print(msg)
 
     def decrement_sprite_x_counters(self):
         for i in range(self.num_secondary_sprites):
@@ -366,10 +359,7 @@ class Ppu:
 
                 self.secondary_oam_num_pixel_to_draw[i] -= 1
 
-
                 if not self.sprite_zero_hit and self.oam[0].tile_num == self.secondary_oam[i].tile_num and color != 0 and self.bg_pixel != 0 and self.render_background == True:
-                #if not self.sprite_zero_hit and i == 0 and color != 0 and self.bg_pixel != 0 and self.render_background == True:
-                    print("Sprite zero hit at cyc:{}   sn:{} tileNmu:{}    x:{}    y:{}".format(self.cycle, self.scanline, self.secondary_oam[0].tile_num, self.secondary_oam[0].x, self.secondary_oam[0].y))
                     self.sprite_zero_hit = True
 
     def fill_sprites_shift_registers(self, y):
@@ -396,28 +386,10 @@ class Ppu:
 
             low, upper = self.cardridge.get_tile_data(tile_num, row, half)
 
-            #if sprite.tile_num != 255:
-                #print("half:{} tile_num:{} row:{} l:{} u:{}".format(half, sprite.tile_num, row, low, upper))
-
             if sprite.flip_horizontally():
                 low = int('{:08b}'.format(low)[::-1], 2)
                 upper = int('{:08b}'.format(upper)[::-1], 2)
 
-            """
-            if i == 0:
-                self.sprite_zero_hit_pos = -1
-                # determine sprite zero hit
-                l = ShiftRegister(8, low)
-                h = ShiftRegister(8, upper)
-                for j in range(8):
-                    lb = l.shift()
-                    hb = h.shift()
-                    color = lb | (hb << 1)
-                    if color != 0:
-                        print("sprite zero hit pos:{}".format(j + sprite.x))
-                        self.sprite_zero_hit_pos = j + sprite.x
-                        break
-            """
             self.secondary_oam_l[i] = ShiftRegister(8, low)
             self.secondary_oam_h[i] = ShiftRegister(8, upper)
 
@@ -453,6 +425,8 @@ class Ppu:
         return text
 
     def read_video_mem(self, address):
+        address &= 0x3FFF
+
         if 0x2000 <= address <= 0x3eff:
             index = address & 0x3ff
             if self.cardridge.mirroring == 0:  # horizontal
@@ -477,9 +451,7 @@ class Ppu:
             return self.cardridge.chr[address]
             #return self.cardridge.chr[self.vram_addr]
         else:
-            #raise NotImplementedError("video ram read for address:{:X}".format(address))
-            print("video ram read for address:{:X}".format(address))
-            return
+            raise NotImplementedError("video ram read for address:{:X}".format(address))
         return
 
     def write_video_mem(self, address, data):
@@ -515,7 +487,6 @@ class Ppu:
                 self.sprite_zero_hit = False
                 self.vblank_read = False
                 self.vblank_flag_read = False
-                print("CYC:{}   SN:{}   clear sprite0hit".format(self.cycle, self.scanline))
 
             elif 280 <= self.cycle <= 304:
                 if self.tmp_addr.base_name_table & 0x800 == 0x800:
@@ -657,7 +628,6 @@ class Ppu:
                 if self.enable_nmi:
                     self.raise_nmi = True
             else:
-                print("skip vblank")
                 self.vblank_read == True
 
         self.cycle += 1
@@ -677,26 +647,17 @@ class Ppu:
         elif address == 0x2:
 
             if self.sprite_zero_hit:
-                #if self.scanline == 260 and self.cycle + 9 >= 341:
-                #    self.status &= 0xBF
-                #else:
                 self.status = self.status | (1 << 6)
-                # print("Zero hit in status")
             else:
-                #if self.sprite_zero_hit_pos != -1 and (self.cycle + 9) > self.sprite_zero_hit_pos:
-                #    self.status = self.status | (1 << 6)
-                #else:
                 self.status &= 0xBF
 
             val = self.last_written_data & 0x1f | self.status & 0xe0
 
             # handle race condition in VBLANK reading
             if ((self.cycle + 9) == 341) and self.scanline == 240:
-                print("handle race condition {}    {}".format(self.cycle, self.scanline))
                 self.vblank_read = True
 
             if (((self.cycle + 9) == 342) or ((self.cycle + 9) == 343)) and self.scanline == 240:
-                print("handle race condition {}    {}".format(self.cycle, self.scanline))
                 self.vblank_read = True
                 val = val | (1 << 7)
 
@@ -707,17 +668,11 @@ class Ppu:
                 self.vblank_flag_read = True
                 val = val | (1 << 7)
 
-            #print("PPU 2002 data:{:02X}".format(val))
-            # val = self.read_buffer & 0x1f | self.status & 0xe0
-            # val = self.status
-            # print("PPU STATUS read 0x2002 val:{}".format(hex(val)))
             self.status = self.status & (0 << 7)  # read clears vertical blank
             self.ppu_addr_flag = 0
             self.address_latch = 0
             return val
         elif address == 0x7:
-            # print("PPU read address:{}".format(hex(self.vram_addr)))
-
             val = 0
             if 0x2000 <= self.vram_addr <= 0x3eff:
                 val = self.read_buffer
@@ -793,23 +748,19 @@ class Ppu:
             self.last_written_data = data
 
             self.ppu_ctrl.from_byte(data)
-            # print("PPUCTRL write:{}".format(hex(data)))
 
             # self.cur_addr.set_name_table(data & 0x3)
             self.tmp_addr.set_base_name_table(data & 0x3)
 
             if data & 0x80:
-                # print("PPU: NMI enabled")
                 self.enable_nmi = True
             else:
                 self.enable_nmi = False
 
             if data & 0x04:
                 self.nametable_inc = 1
-                # print("VRAM INC by 32")
             else:
                 self.nametable_inc = 0
-                # print("VRAM INC by 1")
 
             if data & 0x10:
                 self.background_half = 1
@@ -819,19 +770,11 @@ class Ppu:
             return
         elif address == 0x1:
             self.last_written_data = data
-            # print("PPUMASK write:{}".format(hex(data)))
 
             if data & 0x8:
-                # self.render_background = True
-                # print("Schedule Enable background rendering!")
-                # self.enable_bg_render = True
                 self.render_background = True
-                print("enable BG")
             else:
-                # self.render_background = False
-                # self.enable_bg_render = False
                 self.render_background = False
-                print("disable BG")
 
             if data & 0x10:
                 self.show_sprite = True
@@ -844,12 +787,10 @@ class Ppu:
         elif address == 0x3:
             self.last_written_data = data
             self.oam_addr = data
-            # print("OAM addr:{}".format(hex(self.oam_addr)))
 
         elif address == 0x4:
             self.last_written_data = data
             self.write_oam_data(self.oam_addr, data)
-            # print("OAM addr:{}   data:{}".format(hex(self.oam_addr), hex(data)))
             self.oam_addr += 1
 
         elif address == 0x5:
@@ -864,7 +805,6 @@ class Ppu:
             return
         elif address == 0x6:
             self.last_written_data = data
-            #print("PPUADDR write:{}".format(hex(data)))
             if self.address_latch == 0:
                 self.address_latch = 1
                 self.ppu_addr = 0x0000 | ((data & 0x3f) << 8)
@@ -918,10 +858,6 @@ class Ppu:
                 pass
             else:
                 raise NotImplementedError("PPUWRITE for addr:{}   data:{}".format(hex(self.vram_addr), hex(data)))
-
-            if data != 0:
-                # print("PPUWRITE write addr:{}  data:{}".format(hex(self.vram_addr), hex(data)))
-                pass
 
             if self.nametable_inc:
                 self.vram_addr += 32
