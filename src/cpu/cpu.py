@@ -798,8 +798,8 @@ class Cpu:
         self.pc = (hh << 8) | ll
 
         self.a = 0x00
-        self.x = 0x23
-        self.y = 0x00
+        self.x = 0x21
+        self.y = 0x04
         self.sp = 0xFA    # end of stack
 
         self.sr = StatusRegister()
@@ -974,7 +974,10 @@ class Mapper071:
 
     def map_cpu_write(self, addr, data):
         if addr >= 0xC000 and addr <= 0xffff:
-            self.selected_bank = data & 0xF
+            self.selected_bank = (data & 0xF) & (self.num_banks - 1)
+
+            if self.selected_bank >= self.num_banks:
+                raise Exception("Selected bank:{}  num banks:{}  addr:{:04X}  data:{:02X}".format(self.selected_bank, self.num_banks, addr, data))
         return -1
 
 
