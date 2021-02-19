@@ -310,6 +310,8 @@ class Ppu:
 
         self.fine_x = 0x0
 
+        self.frame = 1
+
     def clear_secondary_oam(self):
         self.secondary_oam = [OamData() for i in range(8)]
 
@@ -412,6 +414,11 @@ class Ppu:
         print("NT 1")
         print(self.print_table(self.name_table_0))
 
+    def dump_state(self, frame_num, cycle, scanline):
+        if self.frame == frame_num and self.cycle == cycle and self.scanline == scanline:
+            print("PPU: frame:{}   cyc:{}   sn:{}  VRAM    {}".format(self.frame, self.cycle, self.scanline, ascii(self.cur_addr)))
+            self.print_name_tables()
+
     def print_table(self, table):
         cnt = 0
         table = self.name_table_0
@@ -480,6 +487,8 @@ class Ppu:
         return pixels
 
     def clock(self):
+        f = -1
+        self.dump_state(f, 1, -1)
 
         if self.scanline == -1:
             if self.cycle == 1:
@@ -487,6 +496,17 @@ class Ppu:
                 self.sprite_zero_hit = False
                 self.vblank_read = False
                 self.vblank_flag_read = False
+
+            if self.cycle == 257:
+                # hori(v) = hori(t)
+                self.cur_addr.tile_x = self.tmp_addr.tile_x
+                if self.tmp_addr.base_name_table == 0x2000:
+                    self.cur_addr.base_name_table = 0x2400
+                if self.tmp_addr.base_name_table == 0x2800:
+                    self.cur_addr.base_name_table = 0x2C00
+
+                if self.frame == f:
+                    print("sn:-1 hori(v) = hori(t) tileX:{}".format(self.cur_addr.tile_x))
 
             elif 280 <= self.cycle <= 304:
                 if self.tmp_addr.base_name_table & 0x800 == 0x800:
@@ -497,12 +517,28 @@ class Ppu:
                 self.cur_addr.tile_y = self.tmp_addr.tile_y
                 self.cur_addr.fine_y = self.tmp_addr.fine_y
 
+                if self.frame == f:
+                    print("sn:-1 vert(v) = vert(t) VRAM    ".format(ascii(self.cur_addr)))
+
             elif self.cycle == 322 and self.render_background:
                 # load id's of 2 first tiles
                 first_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+
+                if self.frame == f:
+                    print("PPU 1st tile:{:02X}    ADDR:{:04X}  cyc:{}   sn:{}   vram:{}".format(first_tile_id,
+                                                                                            self.cur_addr.get_vram_address(),
+                                                                                            self.cycle, self.scanline,
+                                                                                            ascii(self.cur_addr)))
+
                 self.get_palette_idx()
                 self.cur_addr.increment_tile_x()
                 second_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+                if self.frame == f:
+                    print("PPU 2nd tile:{:02X}    ADDR:{:04X}  cyc:{}   sn:{}   vram:{}".format(second_tile_id,
+                                                                                            self.cur_addr.get_vram_address(),
+                                                                                            self.cycle, self.scanline,
+                                                                                            ascii(self.cur_addr)))
+
                 self.cur_addr.increment_tile_x()
 
                 # fill shift register
@@ -528,11 +564,14 @@ class Ppu:
                 if self.scanline == 0 and self.cycle == 0 and self.is_odd:
                     self.cycle = 1
 
-                elif 1 <= self.cycle <= 256 or (321 <= self.cycle <= 340):  # screen width - 256px
+                elif 1 <= self.cycle <= 256 or (321 <= self.cycle <= 337):  # screen width - 256px
 
                     r = self.cycle % 8
                     if r == 2:
                         self.next_tile_id = self.read_video_mem(self.cur_addr.get_vram_address())
+
+                        if self.frame == f:
+                            print("PPU tile:{:02X}    ADDR:{:04X}  cyc:{}   sn:{}   vram:{}".format(self.next_tile_id, self.cur_addr.get_vram_address(), self.cycle, self.scanline, ascii(self.cur_addr)))
 
                     elif r == 4:
 
@@ -601,6 +640,8 @@ class Ppu:
 
                 if self.cycle == 256:
                     self.cur_addr.increment_tile_y()
+                    if self.frame == f:
+                        print("PPU tileY incremented new val:{}".format(ascii(self.cur_addr)))
                 elif self.cycle == 257:
                     if self.tmp_addr.base_name_table & 0x400 == 0x400:
                         self.cur_addr.base_name_table |= 0x400
@@ -637,6 +678,7 @@ class Ppu:
             if self.scanline == 261:
                 self.scanline = -1
                 self.is_odd = not self.is_odd
+                self.frame += 1
 
     def read(self, address):
         address &= 0x7
@@ -892,7 +934,7 @@ class VramRegister:
     def set_address(self, address):
         self.vram_addr = address
         self.tile_x = address & 0x1f
-        self.tile_y = address & 0x3e0
+        self.tile_y = ((address & 0x3e0) >> 5) & 0x1F
         self.set_base_name_table(address & 0xc00)
 
     def get_address(self):
@@ -914,6 +956,8 @@ class VramRegister:
             if self.tile_y == 29:
                 self.tile_y = 0
                 self.base_name_table ^= 0x800
+            elif self.tile_y > 31:
+                self.tile_y = 0
             else:
                 self.tile_y += 1
 
@@ -934,7 +978,7 @@ class VramRegister:
         self.tile_x = px_num >> 3
 
     def scroll_y(self, px_num):  # 0 - 239
-        self.tile_y = px_num // 8
+        self.tile_y = px_num >> 3
         self.fine_y = px_num - (self.tile_y * 8)
 
     def __repr__(self):

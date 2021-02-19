@@ -90,7 +90,7 @@ void VramRegister::setAddress(uint16_t address)
 {
     vramAddr = address;
     tileX = address & 0x1f;
-    tileY = address & 0x3e0;
+    tileY = ((address & 0x3e0) >> 5) & 0x1F;
     setBaseNameTable(address & 0xc00);
 }
 
@@ -108,12 +108,12 @@ void VramRegister::setBaseNameTable(uint8_t value)
 
 void VramRegister::scrollX(uint8_t x)
 {
-    tileX = x/8;
+    tileX = x >> 3;
 }
 
 void VramRegister::scrollY(uint8_t y)
 {
-    tileY = y/8;
+    tileY = y >> 3;
     fineY = y - (tileY * 8);
 }
 
@@ -782,6 +782,15 @@ void Ppu::clock()
             m_status.spriteZeroHit = false;
             m_vblankRead = false;
         }
+        else if(m_cycle == 257)
+        {
+            // hori(v) = hori(t)
+            m_currAddr.tileX = m_tmpAddr.tileX;
+            if(m_tmpAddr.baseNameTable == 0x2000)
+                m_currAddr.baseNameTable = 0x2400;
+            if(m_tmpAddr.baseNameTable == 0x2800)
+                m_currAddr.baseNameTable = 0x2C00;
+        }
         else if(m_cycle >= 280 && m_cycle <= 304) {
             if((m_tmpAddr.baseNameTable & 0x800) == 0x800)
                 m_currAddr.baseNameTable |= 0x800;
@@ -813,7 +822,7 @@ void Ppu::clock()
             if(m_scanline == 0 && m_cycle == 0 && m_isOddFrame)
                 m_cycle = 1;
 
-            else if((m_cycle >= 1 && m_cycle <= 256) || (m_cycle >= 321 && m_cycle <= 340))
+            else if((m_cycle >= 1 && m_cycle <= 256) || (m_cycle >= 321 && m_cycle <= 337))
             {
                 uint8_t r = m_cycle % 8;
                 if(r == 2)

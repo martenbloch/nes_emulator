@@ -68,7 +68,7 @@ class Nes:
 
     def start(self):
         i=0
-        self.c.enable_print = True
+        #self.c.enable_print = True
 
         while True:
         #while i < 8000000:
