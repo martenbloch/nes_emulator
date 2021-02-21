@@ -736,7 +736,7 @@ class Cpu:
                 log_msg += self.inst_as_bytes(self.pc, self.instructions[instruction].size())
                 cpu_state_before = self.to_str()
                 ppu = self.bus.get_device_by_address(0x2000)
-                cpu_state_before += " CYC:{:<3} SL:{:<3}".format(ppu.cycle, ppu.scanline)
+                #cpu_state_before += " CYC:{:<3} SL:{:<3}".format(ppu.cycle, ppu.scanline)
                 cpu_state_before += " CPU Cycle:{}".format(self.clock_ticks)
                 cpu_state_before += "\r\n"
             self.pc += 1
@@ -745,6 +745,15 @@ class Cpu:
                 self.cycles_left_to_perform_current_instruction = 4
                 self.exec_bit_ins = True
             else:
+                if self.clock_ticks == 1338545 or self.clock_ticks == 1368326:
+                    print("Emulate Down Btn")
+                    d = self.bus.get_device_by_address(0x4016)
+                    d.btn_down = True
+                if self.clock_ticks >= 1636316:
+                    print("Emulate Start Btn")
+                    d = self.bus.get_device_by_address(0x4016)
+                    d.btn_start = True
+
                 self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
 
             if self.enable_print and self.exec_bit_ins == False:
@@ -798,9 +807,9 @@ class Cpu:
         self.pc = (hh << 8) | ll
 
         self.a = 0x00
-        self.x = 0x21
-        self.y = 0x04
-        self.sp = 0xFA    # end of stack
+        self.x = 0x00
+        self.y = 0xac
+        self.sp = 0xFc    # end of stack
 
         self.sr = StatusRegister()
         self.sr.from_byte(0x07)
@@ -825,8 +834,9 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        self.data[0x0746] = 0x80
-        self.data[0x0747] = 0x97
+        self.data[0x0000] = 0xac
+        #self.data[0x00FE] = 0x00
+        #self.data[0x00FF] = 0x10
 
     def read(self, address):
         #if address == 0x7fe:
@@ -890,7 +900,7 @@ class Cardrige:
         elif mapperId == 71:
             self.mapper = Mapper071(prg_size)
         elif mapperId == 232:
-            self.mapper = Mapper071(prg_size)
+            self.mapper = Mapper232(prg_size)
         else:
             raise NotImplementedError("unknown mapper id:{}".format(mapperId))
         pass
@@ -978,6 +988,31 @@ class Mapper071:
 
             if self.selected_bank >= self.num_banks:
                 raise Exception("Selected bank:{}  num banks:{}  addr:{:04X}  data:{:02X}".format(self.selected_bank, self.num_banks, addr, data))
+        return -1
+
+
+class Mapper232:
+    def __init__(self, num_banks):
+        self.selected_outer_bank = 0
+        self.selected_inner_bank = 0
+        self.num_banks = num_banks
+
+    def map_cpu_read(self, addr):
+        if addr >= 0x8000 and addr <= 0xBFFF:
+            return (self.selected_outer_bank * 0x10000) | (self.selected_inner_bank * 0x4000) | (addr & 0x3fff)
+        elif addr >= 0xc000 and addr <= 0xffff:
+            return (self.selected_outer_bank * 0x10000) | (3 * 0x4000) | (addr & 0x3fff)
+            #return ((self.num_banks -1) * 0x4000) | (addr & 0x3fff)
+        return addr & 0x3fff
+
+    def map_cpu_write(self, addr, data):
+        if addr >= 0x8000 and addr <= 0xBFFF:
+            self.selected_outer_bank = ((data & 0x18) >> 3) & 0x3
+        if addr >= 0xC000 and addr <= 0xffff:
+            self.selected_inner_bank = (data & 0xF) & 0x3
+
+            #if self.selected_bank >= self.num_banks:
+            #    raise Exception("Selected bank:{}  num banks:{}  addr:{:04X}  data:{:02X}".format(self.selected_bank, self.num_banks, addr, data))
         return -1
 
 

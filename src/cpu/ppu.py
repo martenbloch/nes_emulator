@@ -749,7 +749,8 @@ class Ppu:
                 self.cur_addr.vram_addr += 1
             return val
         else:
-            raise NotImplementedError("PPU read not implemented, address:{}".format(hex(address)))
+            return self.last_written_data
+            #raise NotImplementedError("PPU read not implemented, address:{}".format(hex(address)))
 
     def write_oam_data(self, address, data):
         idx = address // 4

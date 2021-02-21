@@ -656,16 +656,18 @@ uint8_t Ppu::read(uint16_t address)
     else if(address == 0x7)
     {
         uint8_t val{0};
-        if( m_currAddr.vramAddr >= 0x2000 && m_currAddr.vramAddr <= 0x3eff)
+        uint16_t adr = m_currAddr.vramAddr & 0x3FFF;
+
+        if( adr >= 0x2000 && adr <= 0x3eff)
         {
             val = m_readBuffer;
-            m_readBuffer = readVideoMem(m_currAddr.vramAddr);
+            m_readBuffer = readVideoMem(adr);
         }
-        else if(m_currAddr.vramAddr >= 0x3f00 && m_currAddr.vramAddr <= 0x3fff)
+        else if(adr >= 0x3f00 && adr <= 0x3fff)
         {
-            uint8_t index = m_currAddr.vramAddr & 0x3ff;
+            uint8_t index = adr & 0x3ff;
             m_readBuffer = m_nt1[index];
-            uint8_t addr = m_currAddr.vramAddr & 0x001F;
+            uint8_t addr = adr & 0x001F;
             if(addr == 0x0010)
                 addr = 0x0000;
             else if(addr == 0x0014)
@@ -677,10 +679,10 @@ uint8_t Ppu::read(uint16_t address)
 
             val = m_paletteRam[addr];
         }
-        else if(m_currAddr.vramAddr >= 0 && m_currAddr.vramAddr <= 0x1fff)
+        else if(adr >= 0 && adr <= 0x1fff)
         {
             val = m_readBuffer;
-            m_readBuffer = m_chr[m_currAddr.vramAddr];
+            m_readBuffer = m_chr[adr];
         }
         else
             throw std::exception();
