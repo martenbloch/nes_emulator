@@ -745,14 +745,10 @@ class Cpu:
                 self.cycles_left_to_perform_current_instruction = 4
                 self.exec_bit_ins = True
             else:
-                if self.clock_ticks == 1338545 or self.clock_ticks == 1368326:
-                    print("Emulate Down Btn")
-                    d = self.bus.get_device_by_address(0x4016)
-                    d.btn_down = True
-                if self.clock_ticks >= 1636316:
-                    print("Emulate Start Btn")
-                    d = self.bus.get_device_by_address(0x4016)
-                    d.btn_start = True
+                #if self.clock_ticks == 8218594 or self.clock_ticks == 8218975:
+                #    print("Emulate Start Btn =======================================================")
+                #    d = self.bus.get_device_by_address(0x4016)
+                #    d.btn_start = True
 
                 self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
 
@@ -806,13 +802,13 @@ class Cpu:
 
         self.pc = (hh << 8) | ll
 
-        self.a = 0x00
+        self.a = 0x85
         self.x = 0x00
-        self.y = 0xac
+        self.y = 0xff
         self.sp = 0xFc    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x07)
+        self.sr.from_byte(0x84)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -834,7 +830,6 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        self.data[0x0000] = 0xac
         #self.data[0x00FE] = 0x00
         #self.data[0x00FF] = 0x10
 
@@ -1052,10 +1047,10 @@ class Apu:
                     #self.btn_up = False
                 elif self.cnt == 3 and self.btn_start:
                     d = 0x41
-                    self.btn_start = False
+                    #self.btn_start = False
                 elif self.cnt == 2 and self.btn_select:
                     d = 0x41
-                    self.btn_select = False
+                    #self.btn_select = False
                 elif self.cnt == 1 and self.btn_b:
                     d = 0x41
                     #self.btn_b = False
@@ -1106,6 +1101,10 @@ class Apu:
                 elif event.key == pygame.K_RIGHT:
                     #self.pressed_right()
                     self.btn_right = False
+                elif event.key == pygame.K_RETURN:
+                    self.btn_start = False
+                elif event.key == pygame.K_1:
+                    self.btn_select = False
                 elif event.key == pygame.K_a:
                     self.btn_a = False
                 elif event.key == pygame.K_s:
