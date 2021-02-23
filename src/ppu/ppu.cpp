@@ -406,7 +406,7 @@ void Ppu::fillSecondaryOam(int y)
         if(y >= m_oam[i].y && y < (m_oam[i].y + n))
         {
             m_secondaryOam[m_numSecondarySprites] = m_oam[i];
-            m_secondaryOamXCounter[m_numSecondarySprites] = m_oam[i].x;
+            m_secondaryOamXCounter[m_numSecondarySprites] = m_oam[i].x + 1;
             m_secondaryOamAttrBytes[m_numSecondarySprites] = m_oam[i].attr;
             m_secondaryOamNumPixelToDraw[m_numSecondarySprites] = 8;
             m_numSecondarySprites += 1;

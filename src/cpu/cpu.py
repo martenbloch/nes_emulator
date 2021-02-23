@@ -745,10 +745,24 @@ class Cpu:
                 self.cycles_left_to_perform_current_instruction = 4
                 self.exec_bit_ins = True
             else:
-                #if self.clock_ticks == 8218594 or self.clock_ticks == 8218975:
-                #    print("Emulate Start Btn =======================================================")
-                #    d = self.bus.get_device_by_address(0x4016)
-                #    d.btn_start = True
+                """
+                if self.clock_ticks == 2142617:
+                    print("Emulate Down Btn =======================================================")
+                    d = self.bus.get_device_by_address(0x4016)
+                    d.btn_down = True
+                if self.clock_ticks == 2321296:
+                    print("Emulate Down Btn UP =======================================================")
+                    d = self.bus.get_device_by_address(0x4016)
+                    d.btn_down = False
+                if self.clock_ticks == 2678628:
+                    print("Emulate Start Btn =======================================================")
+                    d = self.bus.get_device_by_address(0x4016)
+                    d.btn_start = True
+                if self.clock_ticks == 3005564:
+                    print("Emulate Start Btn Up =======================================================")
+                    d = self.bus.get_device_by_address(0x4016)
+                    d.btn_start = False
+                """
 
                 self.cycles_left_to_perform_current_instruction = self.instructions[instruction].execute()
 
@@ -801,14 +815,17 @@ class Cpu:
         hh = self.read(self.pc + 1)
 
         self.pc = (hh << 8) | ll
+        #self.pc = 0xc039
+        #print("PC:{:04X}".format(self.pc))
+        #exit()
 
-        self.a = 0x85
-        self.x = 0x00
-        self.y = 0xff
+        self.a = 0x04
+        self.x = 0x50
+        self.y = 0x20
         self.sp = 0xFc    # end of stack
 
         self.sr = StatusRegister()
-        self.sr.from_byte(0x84)
+        self.sr.from_byte(0x04)
 
     def nmi(self):
         self.push((self.pc & 0xFF00) >> 8)
@@ -830,7 +847,17 @@ class RamMemory:
 
     def __init__(self):
         self.data = [0 for i in range(0x1FFF)]
-        #self.data[0x00FE] = 0x00
+        self.data[0x0000] = 0xF1
+        self.data[0x0002] = 0xC0
+        self.data[0x0004] = 0x88
+        self.data[0x0005] = 0x1A
+        self.data[0x0007] = 0x08
+        self.data[0x0009] = 0x6d
+        self.data[0x000A] = 0x06
+        self.data[0x0011] = 0x27
+        self.data[0x0014] = 0x05
+        self.data[0x0018] = 0x20
+        self.data[0x00FF] = 0xA0
         #self.data[0x00FF] = 0x10
 
     def read(self, address):

@@ -326,7 +326,7 @@ class Ppu:
         for i in range(64):
             if self.oam[i].y <= y < self.oam[i].y + n:
                 self.secondary_oam[self.num_secondary_sprites] = self.oam[i]
-                self.secondary_oam_x_counter[self.num_secondary_sprites] = self.oam[i].x
+                self.secondary_oam_x_counter[self.num_secondary_sprites] = self.oam[i].x + 1
                 self.secondary_oam_attr_bytes[self.num_secondary_sprites] = self.oam[i].attr
 
                 self.secondary_oam_num_pixel_to_draw[self.num_secondary_sprites] = 8
