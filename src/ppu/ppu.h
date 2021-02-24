@@ -209,6 +209,7 @@ class Ppu
         TileHelper m_nextAttribDataH;
         uint8_t m_nextAttribData;
         bool m_vblankRead;
+        bool m_vblankFlagRead;
         uint8_t m_fineX;
 
         uint8_t readVideoMem(uint16_t address);
