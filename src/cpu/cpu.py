@@ -819,9 +819,9 @@ class Cpu:
         #print("PC:{:04X}".format(self.pc))
         #exit()
 
-        self.a = 0x04
-        self.x = 0x50
-        self.y = 0x20
+        self.a = 0x00
+        self.x = 0x0c
+        self.y = 0x02
         self.sp = 0xFc    # end of stack
 
         self.sr = StatusRegister()
@@ -917,6 +917,8 @@ class Cardrige:
         print("Mapper:{}".format(mapperId))
         if mapperId == 0:
             self.mapper = Mapper000(prg_size)
+        elif mapperId == 1:
+            self.mapper = Mapper001(prg_size, chr_size)
         elif mapperId == 2:
             self.mapper = Mapper002(prg_size)
         elif mapperId == 71:
@@ -930,13 +932,33 @@ class Cardrige:
     def read(self, address, num_bytes=1):
         #mapped_addr = self.mapper.map_cpu_address(address)
         #return self.prg[mapped_addr:mapped_addr+num_bytes]
+        handled, mapped_addr, data = self.mapper.map_cpu_read(address)
+
+        if address == 0xffe0:
+            print("addr:{:04X}  handled:{}  mapped_addr:{}".format(address, handled, mapped_addr))
+
+        if handled:
+            return data
+        else:
+            if mapped_addr > len(self.prg):
+                print("out of range addr:{:04X} mapped:{:04X}".format(address, mapped_addr))
+
+            return self.prg[mapped_addr]
+
+        """
+        OLD WAY
         if self.mapper.map_cpu_read(address) > len(self.prg):
             print("out of range addr:{:04X} mapped:{:04X}".format(address, self.mapper.map_cpu_read(address)))
 
         return self.prg[self.mapper.map_cpu_read(address)]
+        """
 
     def read_many(self, address, num_bytes=1):
+        handled, mapped_addr, data = self.mapper.map_cpu_read(address)
+        """
+        OLD WAY
         mapped_addr = self.mapper.map_cpu_read(address)
+        """
         return tuple(self.prg[mapped_addr:mapped_addr+num_bytes])
 
     def write(self, address, data):
@@ -952,9 +974,11 @@ class Cardrige:
         lower_idx = (16 * tile_number) + row
         upper_idx = lower_idx + 8
         if half == 0:   # left
-            return self.chr[lower_idx], self.chr[upper_idx]
+            return self.chr[self.mapper.map_ppu_read(lower_idx)], self.chr[self.mapper.map_ppu_read(upper_idx)]
+            #return self.chr[lower_idx], self.chr[upper_idx]
         else:           # right - background
-            return self.chr[lower_idx | 0x1000], self.chr[upper_idx | 0x1000]
+            return self.chr[self.mapper.map_ppu_read(lower_idx | 0x1000)], self.chr[self.mapper.map_ppu_read(upper_idx | 0x1000)]
+            #return self.chr[lower_idx | 0x1000], self.chr[upper_idx | 0x1000]
 
 
 class Mapper000:
@@ -963,15 +987,155 @@ class Mapper000:
 
     def map_cpu_read(self, addr):
         if self.prg_size > 1:
-            return addr & 0x7fff
+            return False, addr & 0x7fff, 0x00
         else:
-            return addr & 0x3fff
+            return False, addr & 0x3fff, 0x00
 
     def map_cpu_write(self, addr, data):
         if self.prg_size > 1:
             return addr & 0x7fff
         else:
             return addr & 0x3fff
+
+    def map_ppu_read(self, addr):
+        return addr
+
+
+class Mapper001:
+
+    def __init__(self, num_banks, num_chr_banks):
+        self.sr = 0b10000
+        self.write_counter = 5
+        self.ctrl_data = 0x1C
+        self.prg_bank_mode = 0
+        self.chr_bank_mode = 0
+        self.selected_prg_bank = 0
+        self.max_num_bank_16k = num_banks - 1
+        self.num_bank_16k = 0
+        self.num_bank_32k = 0
+
+        self.num_chr_bank_0 = 0
+        self.num_chr_bank_1 = 0
+        self.num_chr_bank_8k = 0
+        self.chr_switch_mode = 0
+        self.num_chr_banks = num_chr_banks
+
+        self.ram = [0 for i in range(8192)]
+
+    def internal_write(self, addr, data):
+
+        if addr >= 0x8000 and addr <= 0x9FFF:
+            self.chr_switch_mode = ((data & 0b10000) >> 4)
+
+        if addr >= 0xA000 and addr <= 0xBFFF:
+            if self.chr_switch_mode:
+                # 4k
+                self.num_chr_bank_0 = data & 0b11111
+            else:
+                # 8k
+                self.num_chr_bank_8k = ((data & 0b11110) >> 1)
+        if addr >= 0xC000 and addr <= 0xDFFF:
+            if self.chr_switch_mode:
+                # 4k
+                self.num_chr_bank_1 = data & 0b11111
+        if addr >= 0xe000 and addr < 0xffff:
+            # bank select
+            if self.ctrl_data & 0b1000:
+                # 16k mode
+                self.num_bank_16k = data & 0b1111
+            else:
+                # 32k mode
+                self.num_bank_32k = ((data & 0b1110) >> 1)
+
+
+        """
+        if addr >= 0x8000 and addr <= 0x9fff:
+            # control
+            self.prg_bank_mode = (data & 0b1100) >> 2
+            self.chr_bank_mode = (data & 0b10000) >> 4
+            if addr >= 0xa000 and addr <= 0xbfff:
+                # chr bank0
+                pass
+            if addr >= 0xc000 and addr <= 0xdfff:
+                # chr bank1
+                pass
+            if addr >= 0xe000 and addr <= 0xffff:
+                # bank select
+                self.selected_prg_bank = data & 0b1111
+        """
+
+    def map_cpu_write(self, addr, data):
+        if addr >= 0x8000 and addr <= 0xFFFF:
+            if data & 0x80 > 0:
+                # reset
+                self.sr = 0b10000
+                self.ctrl_data |= 0x0c
+                self.write_counter = 0
+            else:
+                # read data
+                bit = (data & 0x01) << 4
+                self.sr >>= 1
+                self.sr |= bit
+                self.write_counter += 1
+                if self.write_counter == 5:
+                    self.internal_write(addr, self.sr)
+                    self.sr = 0b10000
+                    self.write_counter = 0
+        return -1
+
+    def map_cpu_read(self, addr):
+        if addr >= 0x6000 and addr <= 0x7FFF:
+            return True, 0x0000, self.ram[addr & 0x1FFF]
+
+        if self.ctrl_data & 0b1000:
+            # 16kB Mode
+            if self.ctrl_data & 0b100:
+                # 0xC000 - 0xFFFF fixed
+                if addr >= 0xc000 and addr <= 0xffff:
+                    return False, (self.max_num_bank_16k * 0x4000) | (addr & 0x3fff), 0x00
+                else:
+                    return False, (self.num_bank_16k * 0x4000) | (addr & 0x3fff), 0x00
+            else:
+                if addr >= 0xc000 and addr <= 0xffff:
+                    return False, (0 * 0x4000) | (addr & 0x3fff), 0x00
+                else:
+                    return False, (self.max_num_bank_16k * 0x4000) | (addr & 0x3fff), 0x00
+        else:
+            # 32kB mode
+            return False, (self.num_bank_32k * 0x8000) | (addr & 0x7fff), 0x00
+
+        """
+        if addr >= 0x8000 and addr <= 0xbfff:
+            if (self.prg_bank_mode == 0 or self.prg_bank_mode == 1):
+                return False, ((self.selected_prg_bank & 0b1110) * 0x8000) | (addr & 0x3fff), 0x00
+            elif self.prg_bank_mode == 2:
+                return False, (0 * 0x4000) | (addr & 0x3fff), 0x00
+            elif self.prg_bank_mode == 3:
+                return False, (self.selected_prg_bank * 0x4000) | (addr & 0x3fff), 0x00
+        elif addr >= 0xc000 and addr <= 0xffff:
+            if (self.prg_bank_mode == 0 or self.prg_bank_mode == 1):
+                return False, ((self.selected_prg_bank & 0b1110) * 0x8000) | (addr & 0x3fff), 0x00
+            if self.prg_bank_mode == 2:
+                return False, (self.selected_prg_bank * 0x4000) | (addr & 0x3fff), 0x00
+            elif self.prg_bank_mode == 3:
+                return False, (0 * 0x4000) | (addr & 0x3fff), 0x00
+        """
+        print("unhandled address:{:04X}".format(addr))
+
+    def map_ppu_read(self, addr):
+        if addr < 0x2000:
+            if self.num_chr_banks == 0:
+                return addr
+            else:
+                if self.chr_switch_mode == 1:
+                    # 4k banks
+                    if addr >= 0x0000 and addr <= 0x0fff:
+                        return (self.num_chr_bank_0 * 0x1000) | (addr & 0x0fff)
+                    if addr >= 0x1000 and addr <= 0x1fff:
+                        return (self.num_chr_bank_1 * 0x1000) | (addr & 0x0fff)
+                else:
+                    # 8k banks
+                    return (self.num_chr_bank_8k * 0x2000) | (addr & 0x1fff)
 
 
 class Mapper002:
@@ -981,15 +1145,18 @@ class Mapper002:
 
     def map_cpu_read(self, addr):
         if addr >= 0x8000 and addr <= 0xBFFF:
-            return (self.selected_bank * 0x4000) | (addr & 0x3fff)
+            return False, (self.selected_bank * 0x4000) | (addr & 0x3fff), 0x00
         elif addr >= 0xc000 and addr <= 0xffff:
-            return ((self.num_banks - 1) * 0x4000) | (addr & 0x3fff)
+            return False, ((self.num_banks - 1) * 0x4000) | (addr & 0x3fff), 0x00
         return addr & 0x3fff
 
     def map_cpu_write(self, addr, data):
         if addr >= 0x8000 and addr <= 0xffff:
             self.selected_bank = data & 0xF
         return -1
+
+    def map_ppu_read(self, addr):
+        return addr
 
 
 class Mapper071:
@@ -999,10 +1166,10 @@ class Mapper071:
 
     def map_cpu_read(self, addr):
         if addr >= 0x8000 and addr <= 0xBFFF:
-            return (self.selected_bank * 0x4000) | (addr & 0x3fff)
+            return False, (self.selected_bank * 0x4000) | (addr & 0x3fff), 0x00
         elif addr >= 0xc000 and addr <= 0xffff:
-            return ((self.num_banks -1) * 0x4000) | (addr & 0x3fff)
-        return addr & 0x3fff
+            return False, ((self.num_banks -1) * 0x4000) | (addr & 0x3fff), 0x00
+        return False, addr & 0x3fff, 0x00
 
     def map_cpu_write(self, addr, data):
         if addr >= 0xC000 and addr <= 0xffff:
@@ -1011,6 +1178,9 @@ class Mapper071:
             if self.selected_bank >= self.num_banks:
                 raise Exception("Selected bank:{}  num banks:{}  addr:{:04X}  data:{:02X}".format(self.selected_bank, self.num_banks, addr, data))
         return -1
+
+    def map_ppu_read(self, addr):
+        return addr
 
 
 class Mapper232:
@@ -1021,11 +1191,11 @@ class Mapper232:
 
     def map_cpu_read(self, addr):
         if addr >= 0x8000 and addr <= 0xBFFF:
-            return (self.selected_outer_bank * 0x10000) | (self.selected_inner_bank * 0x4000) | (addr & 0x3fff)
+            return False, (self.selected_outer_bank * 0x10000) | (self.selected_inner_bank * 0x4000) | (addr & 0x3fff), 0x00
         elif addr >= 0xc000 and addr <= 0xffff:
-            return (self.selected_outer_bank * 0x10000) | (3 * 0x4000) | (addr & 0x3fff)
+            return False, (self.selected_outer_bank * 0x10000) | (3 * 0x4000) | (addr & 0x3fff), 0x00
             #return ((self.num_banks -1) * 0x4000) | (addr & 0x3fff)
-        return addr & 0x3fff
+        return False, addr & 0x3fff, 0x00
 
     def map_cpu_write(self, addr, data):
         if addr >= 0x8000 and addr <= 0xBFFF:
@@ -1036,6 +1206,9 @@ class Mapper232:
             #if self.selected_bank >= self.num_banks:
             #    raise Exception("Selected bank:{}  num banks:{}  addr:{:04X}  data:{:02X}".format(self.selected_bank, self.num_banks, addr, data))
         return -1
+
+    def map_ppu_read(self, addr):
+        return addr
 
 
 class Apu:

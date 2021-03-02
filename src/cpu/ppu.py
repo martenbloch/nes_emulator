@@ -455,7 +455,8 @@ class Ppu:
             return self.palette_ram[address & 0xff]
 
         elif 0 <= address <= 0x1fff:
-            return self.cardridge.chr[address]
+            return self.cardridge.chr[self.cardridge.mapper.map_ppu_read(address)]
+            #return self.cardridge.chr[address]
             #return self.cardridge.chr[self.vram_addr]
         else:
             raise NotImplementedError("video ram read for address:{:X}".format(address))
@@ -736,7 +737,7 @@ class Ppu:
                 # return self.palette_ram[self.vram_addr & 0xff]
             elif 0 <= self.vram_addr <= 0x1fff:
                 val = self.read_buffer
-                self.read_buffer = self.cardridge.chr[self.vram_addr]
+                self.read_buffer = self.cardridge.chr[self.cardridge.mapper.map_ppu_read(self.vram_addr)]
                 # return val
             else:
                 raise NotImplementedError("PPUREAD for addr:{}".format(hex(self.vram_addr)))
