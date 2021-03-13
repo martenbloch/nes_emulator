@@ -6,7 +6,9 @@ import cProfile
 import pstats
 import re
 import ppu_cpp
+import nes_cpp
 import numpy as np
+import ctypes
 
 
 class Nes:
@@ -155,9 +157,113 @@ def nes_main_profile():
     stats.print_stats()
 
 
+class C:
+    def __init__(self):
+        self.start_pressed = False
+        self.select_pressed = False
+        self.left_pressed = False
+        self.right_pressed = False
+        self.up_pressed = False
+        self.down_pressed = False
+        self.a_pressed = False
+        self.b_pressed = False
+
+
+c = C()
+
+
+def btn_state_getter():
+
+    for event in pygame.event.get(pygame.KEYDOWN):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                c.up_pressed = True
+            elif event.key == pygame.K_DOWN:
+                c.down_pressed = True
+            elif event.key == pygame.K_LEFT:
+                c.left_pressed = True
+            elif event.key == pygame.K_RIGHT:
+                c.right_pressed = True
+            elif event.key == pygame.K_RETURN:
+                c.start_pressed = True
+            elif event.key == pygame.K_1:
+                c.select_pressed = True
+            elif event.key == pygame.K_a:
+                c.a_pressed = True
+            elif event.key == pygame.K_s:
+                c.b_pressed = True
+
+    for event in pygame.event.get(pygame.KEYUP):
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_UP:
+                c.up_pressed = False
+            elif event.key == pygame.K_DOWN:
+                c.down_pressed = False
+            elif event.key == pygame.K_LEFT:
+                c.left_pressed = False
+            elif event.key == pygame.K_RIGHT:
+                c.right_pressed = False
+            elif event.key == pygame.K_RETURN:
+                c.start_pressed = False
+            elif event.key == pygame.K_1:
+                c.select_pressed = False
+            elif event.key == pygame.K_a:
+                c.a_pressed = False
+            elif event.key == pygame.K_s:
+                c.b_pressed = False
+
+    result = 0x00
+    if c.up_pressed:
+        result |= 0x01
+    if c.down_pressed:
+        result |= 0x02
+    if c.left_pressed:
+        result |= 0x04
+    if c.right_pressed:
+        result |= 0x08
+    if c.start_pressed:
+        result |= 0x10
+    if c.select_pressed:
+        result |= 0x20
+    if c.a_pressed:
+        result |= 0x40
+    if c.b_pressed:
+        result |= 0x80
+
+    return result
+
+
+BTNFUNC = ctypes.CFUNCTYPE(ctypes.c_int)
+btn_func = BTNFUNC(btn_state_getter)
+#ptr = lib.ppu_get_frame_data(self.obj)
+#ArrayType = ctypes.c_uint * (256 * 240)
+#array_pointer = ctypes.cast(ptr, ctypes.POINTER(ArrayType))
+#v = np.frombuffer(array_pointer.contents, dtype=np.int32)
+
+screen = Screen()
+
+
+def on_new_frame(data):
+    ArrayType = ctypes.c_uint * (256 * 240)
+    array_pointer = ctypes.cast(data, ctypes.POINTER(ArrayType))
+    v = np.frombuffer(array_pointer.contents, dtype=np.int32)
+    screen.update(v)
+
+FRAMEFUNC = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint * (256 * 240)))
+frame_func = FRAMEFUNC(on_new_frame)
+
+
+def nes_main_cpp():
+    #nes = nes_cpp.NesCpp("tests/nestest.nes", btn_func, frame_func)
+    nes = nes_cpp.NesCpp("tests/pegasus/super-mario-bros.nes", btn_func, frame_func)
+    nes.reset()
+    nes.start()
+
+
 if __name__ == "__main__":
     print("NES emulator")
 
-    nes_main()
+    #nes_main()
     #nes_main_profile()
+    nes_main_cpp()
 
